@@ -1,0 +1,133 @@
+---
+jupyter: python3
+---
+
+# LLMOps for Production RAG
+
+Welcome to the LLMOps for Production RAG workshop! In this workshop, we will cover:
+
+1. Creating a baseline RAG pipeline
+2. Bootstrapping an evaluation dataset
+3. RAG Hyperparameter Optimization
+
+
+```{python}
+try:
+    import google.colab
+    IN_COLAB = True
+except ImportError:
+    IN_COLAB = False
+
+if IN_COLAB:
+    !git clone https://github.com/unionai-oss/llmops-production-rag.git
+    %cd llmops-production-rag
+    %pip install -r requirements.lock.txt
+```
+
+
+```{python}
+%cd /content/llmops-production-rag
+!union create login --auth device-flow --serverless
+```
+
+## Creating a Baseline RAG Pipeline
+
+Create the vector store:
+
+```bash
+union run --remote llmops_rag/vector_store.py create --include_union --limit 100
+```
+
+Then run the simple rag pipeline
+
+```bash
+union run --remote llmops_rag/simple_rag.py run --question "Write a simple hello world workflow"
+```
+
+## Bootstrapping an Evaluation Dataset
+
+First create a raw knowledge base:
+
+```bash
+union run --remote llmops_rag/vector_store.py create_knowledge_base --include_union --limit 100
+```
+
+Then synthesize a question and answer dataset:
+
+```bash
+union run --remote llmops_rag/synthesize_data.py run --n_questions 1 --n_answers 5
+```
+
+**👉 TODO: run LLM as judge workflow**
+
+Register the data annotation workflow:
+
+```bash
+union register llmops_rag/annotate_data.py
+```
+
+Run a single annotation session to test it out:
+
+```bash
+union run --remote llmops_rag/annotate_data.py create_annotation_set --random_seed 42 --n_samples 10
+```
+
+### Annotator App
+
+Create an api key
+
+```bash
+union create app annotation-app
+```
+
+You'll see an output that looks like this:
+
+```
+Client ID: serverless-1-xyz-annotation-app
+The following API key will only be shown once. Be sure to keep it safe!
+Configure your headless CLI by setting the following environment variable:
+
+export UNION_API_KEY="<UNIONAI_SERVERLESS_API_KEY>"
+```
+
+Securely store the `<UNIONAI_SERVERLESS_API_KEY>` for future usage.
+
+Then Create a directory `.streamlit` directory and create a `secrets.toml` file in it:
+
+```
+UNIONAI_SERVERLESS_API_KEY = "<UNIONAI_SERVERLESS_API_KEY>"
+REDIS_KEY = "<REDIS_KEY>"
+SECRET_PASSCODE = "<SECRET_PASSCODE>"
+```
+
+Run the app
+
+```bash
+streamlit run streamlit/app.py
+```
+
+## RAG Hyperparameter Optimization
+
+Create the eval dataset:
+
+```bash
+union run --remote llmops_rag/eval_dataset.py create --min_annotations_per_question 1
+```
+
+Evaluate a RAG experiment:
+
+```bash
+union run --remote llmops_rag/hpo.py run --eval_configs config/eval_inputs_prompt.yaml
+```
+
+Experiment with different chunksizes:
+
+```bash
+union run --remote llmops_rag/hpo.py run --eval_configs config/eval_inputs_chunksize.yaml
+```
+
+Experiment with different splitters:
+
+```bash
+union run --remote llmops_rag/hpo.py run --eval_configs config/eval_inputs_splitter.yaml
+```

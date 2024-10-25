@@ -1,0 +1,6 @@
+- condition_name: chunksize-1024
+  chunk_size: 1024
+  limit: 100
+- condition_name: chunksize-2048
+  chunk_size: 2048
+  limit: 100

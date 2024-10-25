@@ -1,0 +1,8 @@
+- condition_name: character
+  splitter: character
+  chunk_size: 2048
+  limit: 100
+- condition_name: recursive
+  splitter: recursive
+  chunk_size: 2048
+  limit: 100
