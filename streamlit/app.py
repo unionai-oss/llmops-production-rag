@@ -26,7 +26,9 @@ ANSWER_FORMAT = {
     "neither": "Neither are correct",
     "question_incoherent": "The question doesn't make sense",
 }
-APP_VERSION = "testing0"
+
+LABEL_KEY = "union_annotator"
+LABEL_VALUE = "llmops_workshop_v0"
 
 
 st.set_page_config(
@@ -69,7 +71,7 @@ def get_annotation_data(username: str, session_id: str) -> tuple[list[dict], str
     execution = remote.execute(
         workflow,
         inputs={"random_seed": seed, "n_samples": N_SAMPLES},
-        options=Options(labels=Labels(values={"union_annotator": APP_VERSION})),
+        options=Options(labels=Labels(values={LABEL_KEY: LABEL_VALUE})),
     )
     url = remote.generate_console_url(execution)
     st.write(f"🚀 [Union Serverless execution]({url})")

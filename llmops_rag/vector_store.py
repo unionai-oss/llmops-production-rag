@@ -54,7 +54,7 @@ FINAL ANSWER:
 )
 def create_knowledge_base(
     root_url_tags_mapping: Optional[dict] = None,
-    include_union: bool = False,
+    include_union: bool | None = None,
     limit: Optional[int | float] = None,
     exclude_patterns: Optional[list[str]] = None,
 ) -> Annotated[list[CustomDocument], KnowledgeBase]:
@@ -63,6 +63,8 @@ def create_knowledge_base(
     """
     from langchain_community.document_loaders import AsyncHtmlLoader
     from llmops_rag.document import get_links, HTML2MarkdownTransformer
+
+    include_union = include_union if isinstance(include_union, bool) else False
 
     if root_url_tags_mapping is None:
         root_url_tags_mapping = {
@@ -169,9 +171,9 @@ This artifact is a vector store of {len(document_chunks)} document chunks using 
 @openai_env_secret
 def create_vector_store(
     documents: list[CustomDocument] = KnowledgeBase.query(),
-    splitter: str = "recursive",
-    chunk_size: int | None = None,
-    embedding_type: str = "openai",
+    splitter: str | None = None,
+    chunk_size: int | float | None = None,
+    embedding_type: str | None = None,
 ) -> Annotated[FlyteDirectory, VectorStore]:
     """
     Create the search index.
@@ -184,7 +186,10 @@ def create_vector_store(
         MarkdownHeaderTextSplitter,
     )
 
-    chunk_size = chunk_size or 1024
+    splitter = splitter or "recursive"
+    chunk_size = int(chunk_size or 1024)
+    embedding_type = embedding_type or "openai"
+
     documents = [flyte_doc.to_document() for flyte_doc in documents]
     if splitter == "character":
         splitter = CharacterTextSplitter(

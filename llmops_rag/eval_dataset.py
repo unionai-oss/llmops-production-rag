@@ -174,7 +174,7 @@ def rank_annotations_per_question(
 
 
 LABEL_KEY = "union_annotator"
-LABEL_VALUE = "testing0"
+LABEL_VALUE = "llmops_workshop_v0"
 
 
 @task(

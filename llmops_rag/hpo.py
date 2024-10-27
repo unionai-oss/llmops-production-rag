@@ -6,26 +6,18 @@ from functools import partial
 from typing import Annotated, Optional
 
 import pandas as pd
-from flytekit import (
-    current_context,
-    dynamic,
-    map_task,
-    task,
-    workflow,
-    Artifact,
-    Deck,
-    Secret,
-    Resources,
-)
+import flytekit as fk
 from flytekit.deck import TopFrameRenderer
 from flytekit.types.directory import FlyteDirectory
 
+from llmops_rag.config import RAGConfig
 from llmops_rag.image import image as rag_image
 from llmops_rag.vector_store import create as create_vector_store
-from llmops_rag.simple_rag import RAGConfig, run as _run_simple_rag
+from llmops_rag.simple_rag import run as _run_simple_rag
+from llmops_rag.utils import openai_env_secret
 
 
-EvalDatasetArtifact = Artifact(name="test-eval-dataset")
+EvalDatasetArtifact = fk.Artifact(name="test-eval-dataset")
 
 image = rag_image.with_packages(["nltk", "rouge-score", "seaborn"])
 
@@ -49,7 +41,7 @@ class Answer:
     question_id: int
 
 
-@task(
+@fk.task(
     container_image=image,
     cache=True,
     cache_version="1",
@@ -65,38 +57,48 @@ def prepare_questions(dataset: pd.DataFrame, n_answers: int) -> list[Question]:
     return [Question(**record) for record in questions]
 
 
-@workflow
+@fk.task(
+    container_image=image,
+    requests=fk.Resources(cpu="2", mem="8Gi"),
+    secret_requests=[fk.Secret(key="openai_api_key")],
+    cache=True,
+    cache_version="1",
+)
+@openai_env_secret
 def run_simple_rag(
     question: Question,
-    search_index: FlyteDirectory,
+    vector_store: FlyteDirectory,
     prompt_template: str,
 ) -> Answer:
     return Answer(
-        answer=_run_simple_rag(
+        answer=_run_simple_rag._workflow_function(
             question=question.question,
-            search_index=search_index,
+            vector_store=vector_store,
             prompt_template=prompt_template,
         ),
         question_id=question.question_id,
     )
 
 
-@dynamic
+@fk.workflow
 def generate_answers(questions: list[Question], config: RAGConfig) -> list[Answer]:
-    search_index = create_vector_store(
+    vector_store = create_vector_store(
         splitter=config.splitter,
         chunk_size=config.chunk_size,
         include_union=config.include_union,
         limit=config.limit,
         embedding_type=config.embedding_type,
     )
-    answers = []
-    for question in questions:
-        answers.append(run_simple_rag(question, search_index, config.prompt_template))
+    partial_rag = partial(
+        run_simple_rag,
+        vector_store=vector_store,
+        prompt_template=config.prompt_template,
+    )
+    answers = fk.map_task(partial_rag, concurrency=25)(questions)
     return answers
 
 
-@dynamic(container_image=image, cache=True, cache_version="1")
+@fk.dynamic(container_image=image, cache=True, cache_version="2")
 def gridsearch(questions: list[Question], eval_configs: list[HPOConfig]) -> list[list[Answer]]:
     answers = []
     for config in eval_configs:
@@ -115,7 +117,7 @@ def gridsearch(questions: list[Question], eval_configs: list[HPOConfig]) -> list
     return answers
 
 
-@task(
+@fk.task(
     container_image=image,
     cache=True,
     cache_version="1",
@@ -220,26 +222,28 @@ def llm_correctness_eval(
     return answers_dataset.assign(llm_correctness_score=llm_correctness_scores)
 
 
-@task(
+@fk.task(
     container_image=image,
     enable_deck=True,
-    secret_requests=[Secret(key="openai_api_key")],
+    secret_requests=[fk.Secret(key="openai_api_key")],
+    requests=fk.Resources(cpu="4", mem="8Gi"),
     cache=True,
     cache_version="5",
 )
+@openai_env_secret
 def evaluate(
     answers_dataset: pd.DataFrame,
     eval_prompt_template: Optional[str] = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     import seaborn as sns
 
-    os.environ["OPENAI_API_KEY"] = current_context().secrets.get(key="openai_api_key")
-
     evaluation = traditional_nlp_eval(answers_dataset)
     evaluation = llm_correctness_eval(evaluation, eval_prompt_template)
 
     evaluation_summary = (
-        evaluation.groupby([*HPOConfig.__dataclass_fields__])[
+        evaluation
+        .astype({"exclude_patterns": str})
+        .groupby([*HPOConfig.__dataclass_fields__])[
             ["bleu_score", "rouge1_f1", "llm_correctness_score"]
         ]
         .mean()
@@ -257,17 +261,15 @@ def evaluate(
     g.map_dataframe(sns.barplot, x="condition_name", y="score")
     g.add_legend()
 
-    decks = current_context().decks
-    decks.insert(0, Deck("Evaluation", TopFrameRenderer(10).to_html(evaluation)))
-    decks.insert(
-        0, Deck("Evaluation Summary", TopFrameRenderer(10).to_html(evaluation_summary))
-    )
-    decks.insert(0, Deck("Benchmarking Results", _convert_fig_into_html(g.figure)))
+    decks = fk.current_context().decks
+    decks.insert(0, fk.Deck("Evaluation", TopFrameRenderer(10).to_html(evaluation)))
+    decks.insert(0, fk.Deck("Evaluation Summary", TopFrameRenderer(10).to_html(evaluation_summary)))
+    decks.insert(0, fk.Deck("Benchmarking Results", _convert_fig_into_html(g.figure)))
 
     return evaluation, evaluation_summary
 
 
-@workflow
+@fk.workflow
 def run(
     hpo_configs: list[HPOConfig],
     eval_dataset: Annotated[

@@ -35,7 +35,7 @@ if IN_COLAB:
 Create the vector store:
 
 ```bash
-union run --remote llmops_rag/vector_store.py create --include_union --limit 100
+union run --remote llmops_rag/vector_store.py create --include_union --limit 10
 ```
 
 Then run the simple rag pipeline
@@ -49,7 +49,7 @@ union run --remote llmops_rag/simple_rag.py run --question "Write a simple hello
 First create a raw knowledge base:
 
 ```bash
-union run --remote llmops_rag/vector_store.py create_knowledge_base --include_union --limit 100
+union run --remote llmops_rag/vector_store.py create_knowledge_base --include_union --limit 10
 ```
 
 Then synthesize a question and answer dataset:
@@ -57,8 +57,6 @@ Then synthesize a question and answer dataset:
 ```bash
 union run --remote llmops_rag/synthesize_data.py run --n_questions 1 --n_answers 5
 ```
-
-**👉 TODO: run LLM as judge workflow**
 
 Register the data annotation workflow:
 
@@ -117,17 +115,22 @@ union run --remote llmops_rag/eval_dataset.py create --min_annotations_per_quest
 Evaluate a RAG experiment:
 
 ```bash
-union run --remote llmops_rag/hpo.py run --eval_configs config/eval_inputs_prompt.yaml
+union run --remote llmops_rag/hpo.py run --hpo_configs config/prompt_experiment.yaml
 ```
 
 Experiment with different chunksizes:
 
 ```bash
-union run --remote llmops_rag/hpo.py run --eval_configs config/eval_inputs_chunksize.yaml
+union run --remote llmops_rag/hpo.py run --hpo_configs config/chunksize_experiment.yaml
 ```
 
 Experiment with different splitters:
 
 ```bash
-union run --remote llmops_rag/hpo.py run --eval_configs config/eval_inputs_splitter.yaml
+union run --remote llmops_rag/hpo.py run --hpo_configs config/splitter_experiment.yaml
 ```
+
+TODO:
+- implement LLM as a judge to create annotated dataset
+- implement random search
+- implement bayesian hpo
