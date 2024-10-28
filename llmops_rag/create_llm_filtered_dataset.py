@@ -9,6 +9,7 @@ from flytekit.types.file import FlyteFile
 
 from llmops_rag.image import image
 from llmops_rag.create_qa_dataset import QuestionAndAnswers
+from llmops_rag.utils import openai_env_secret
 
 
 QuestionAndAnswerDataset = fk.Artifact(name="question_and_answer_dataset")
@@ -33,7 +34,9 @@ class ReferenceAnswer:
 @fk.task(
     container_image=image,
     requests=fk.Resources(cpu="2", mem="4Gi"),
+    secret_requests=[fk.Secret(key="openai_api_key")],
 )
+@openai_env_secret
 def llm_critic(qa_datapoint: QuestionAndAnswers) -> QualityScore:
     """Returns critic scores per question-answer pair."""
     # implement prompts for each quality score filed

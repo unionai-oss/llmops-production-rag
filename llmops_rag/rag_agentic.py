@@ -11,7 +11,7 @@ from flytekit.deck.renderer import MarkdownRenderer
 from flytekit.types.directory import FlyteDirectory
 from union.actor import ActorEnvironment
 
-from llmops_rag.simple_rag import image, VectorStore
+from llmops_rag.rag_basic import image, VectorStore
 from llmops_rag.utils import openai_env_secret
 
 

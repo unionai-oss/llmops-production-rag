@@ -13,7 +13,7 @@ from flytekit.types.directory import FlyteDirectory
 from llmops_rag.config import RAGConfig
 from llmops_rag.image import image as rag_image
 from llmops_rag.vector_store import create as create_vector_store
-from llmops_rag.simple_rag import run as _run_simple_rag
+from llmops_rag.rag_basic import run as _run_rag_basic
 from llmops_rag.utils import openai_env_secret
 
 
@@ -65,13 +65,13 @@ def prepare_questions(dataset: pd.DataFrame, n_answers: int) -> list[Question]:
     cache_version="1",
 )
 @openai_env_secret
-def run_simple_rag(
+def run_rag_basic(
     question: Question,
     vector_store: FlyteDirectory,
     prompt_template: str,
 ) -> Answer:
     return Answer(
-        answer=_run_simple_rag._workflow_function(
+        answer=_run_rag_basic._workflow_function(
             question=question.question,
             vector_store=vector_store,
             prompt_template=prompt_template,
@@ -90,7 +90,7 @@ def generate_answers(questions: list[Question], config: RAGConfig) -> list[Answe
         embedding_type=config.embedding_type,
     )
     partial_rag = partial(
-        run_simple_rag,
+        run_rag_basic,
         vector_store=vector_store,
         prompt_template=config.prompt_template,
     )

@@ -41,7 +41,7 @@ union run --remote llmops_rag/vector_store.py create --include_union --limit 10
 Then run the simple rag pipeline
 
 ```bash
-union run --remote llmops_rag/simple_rag.py run --question "Write a simple hello world workflow"
+union run --remote llmops_rag/rag_basic.py run --question "Write a simple hello world workflow"
 ```
 
 ## Bootstrapping an Evaluation Dataset
@@ -115,19 +115,19 @@ union run --remote llmops_rag/create_annotated_dataset.py create --min_annotatio
 Evaluate a RAG experiment:
 
 ```bash
-union run --remote llmops_rag/hyperparam_opt.py run --hpo_configs config/prompt_experiment.yaml
+union run --remote llmops_rag/optimize_rag.py run --hpo_configs config/prompt_experiment.yaml
 ```
 
 Experiment with different chunksizes:
 
 ```bash
-union run --remote llmops_rag/hyperparam_opt.py run --hpo_configs config/chunksize_experiment.yaml
+union run --remote llmops_rag/optimize_rag.py run --hpo_configs config/chunksize_experiment.yaml
 ```
 
 Experiment with different splitters:
 
 ```bash
-union run --remote llmops_rag/hyperparam_opt.py run --hpo_configs config/splitter_experiment.yaml
+union run --remote llmops_rag/optimize_rag.py run --hpo_configs config/splitter_experiment.yaml
 ```
 
 TODO:
