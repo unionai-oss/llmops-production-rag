@@ -1,3 +1,5 @@
+"""Generate a question and answer dataset."""
+
 import functools
 import itertools
 import json
@@ -30,6 +32,7 @@ QuestionAndAnswerDataset = Artifact(name="question_and_answer_dataset")
 class QuestionAndAnswers:
     question: str
     answers: List[str]
+    context: str
     url: str
 
 
@@ -113,7 +116,10 @@ def generate_qa_pairs(
         print(answers)
         qa_pairs.append(
             QuestionAndAnswers(
-                question=question, answers=answers, url=flyte_doc.metadata["source"]
+                question=question,
+                answers=answers,
+                context=document.page_content,
+                url=flyte_doc.metadata["source"],
             )
         )
 
@@ -133,7 +139,6 @@ def create_dataset(questions_and_answers: List[List[QuestionAndAnswers]]) -> Fly
     qa_triples_list = []
     id_counter = 1
     for i, qa in enumerate(questions_and_answers_flat):
-        question = qa.question
         answers = qa.answers
         answer_combinations = list(itertools.combinations(answers, 2))
 
@@ -141,8 +146,10 @@ def create_dataset(questions_and_answers: List[List[QuestionAndAnswers]]) -> Fly
             qa_triples_list.append(
                 {
                     "id": id_counter,
-                    "question": question,
+                    "question": qa.question,
                     "answers": list(combo),
+                    "context": qa.context,
+                    "url": qa.url,
                 }
             )
             id_counter += 1

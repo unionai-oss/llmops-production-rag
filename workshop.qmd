@@ -52,10 +52,10 @@ First create a raw knowledge base:
 union run --remote llmops_rag/vector_store.py create_knowledge_base --include_union --limit 10
 ```
 
-Then synthesize a question and answer dataset:
+Then generate a question and answer dataset:
 
 ```bash
-union run --remote llmops_rag/synthesize_data.py run --n_questions 1 --n_answers 5
+union run --remote llmops_rag/create_qa_dataset.py run --n_questions 1 --n_answers 5
 ```
 
 Register the data annotation workflow:
@@ -109,25 +109,25 @@ streamlit run streamlit/app.py
 Create the eval dataset:
 
 ```bash
-union run --remote llmops_rag/eval_dataset.py create --min_annotations_per_question 1
+union run --remote llmops_rag/create_annotated_dataset.py create --min_annotations_per_question 1
 ```
 
 Evaluate a RAG experiment:
 
 ```bash
-union run --remote llmops_rag/hpo.py run --hpo_configs config/prompt_experiment.yaml
+union run --remote llmops_rag/hyperparam_opt.py run --hpo_configs config/prompt_experiment.yaml
 ```
 
 Experiment with different chunksizes:
 
 ```bash
-union run --remote llmops_rag/hpo.py run --hpo_configs config/chunksize_experiment.yaml
+union run --remote llmops_rag/hyperparam_opt.py run --hpo_configs config/chunksize_experiment.yaml
 ```
 
 Experiment with different splitters:
 
 ```bash
-union run --remote llmops_rag/hpo.py run --hpo_configs config/splitter_experiment.yaml
+union run --remote llmops_rag/hyperparam_opt.py run --hpo_configs config/splitter_experiment.yaml
 ```
 
 TODO:

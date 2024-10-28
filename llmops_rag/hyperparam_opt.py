@@ -187,7 +187,7 @@ in terms of correctness? You MUST answer "Yes" or "No".
 """
 
 
-def llm_correctness_eval(
+def llm_judge_eval(
     answers_dataset: pd.DataFrame, eval_prompt_template: Optional[str] = None
 ) -> pd.DataFrame:
     from langchain_core.prompts import PromptTemplate
@@ -238,7 +238,7 @@ def evaluate(
     import seaborn as sns
 
     evaluation = traditional_nlp_eval(answers_dataset)
-    evaluation = llm_correctness_eval(evaluation, eval_prompt_template)
+    evaluation = llm_judge_eval(evaluation, eval_prompt_template)
 
     evaluation_summary = (
         evaluation
