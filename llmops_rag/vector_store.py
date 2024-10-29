@@ -27,23 +27,6 @@ from llmops_rag.utils import openai_env_secret
 KnowledgeBase = Artifact(name="knowledge-base")
 VectorStore = Artifact(name="vector-store")
 
-DEFAULT_PROMPT_TEMPLATE = """You are a helpful chat assistant that is an expert in Flyte and the flytekit sdk.
-Create a final answer with references ("SOURCES").
-If you don't know the answer, just say that you don't know. Don't try to make up an answer.
-If the QUESTION is not relevant to Flyte or flytekit, just say that you're not able
-to answer any questions that are not related to Flyte or flytekit.
-ALWAYS return a "SOURCES" part in your answer.
-
-SOURCES:
-
-QUESTION: {question}
-=========
-{summaries}
-=========
-FINAL ANSWER:
-
-"""
-
 
 @task(
     container_image=image,
@@ -64,12 +47,12 @@ def create_knowledge_base(
     from llmops_rag.document import get_links, HTML2MarkdownTransformer
 
     root_url_tags_mapping = root_url_tags_mapping or {
-        "https://docs.flyte.org/en/latest/": ("article", {"class": "bd-article"}),
-        "https://docs.union.ai/byoc/": ("article", {"class": "bd-article"}),
-        "https://docs.union.ai/serverless/": ("article", {"class": "bd-article"}),
+        "https://pandas.pydata.org/docs/user_guide/": ("div", {"class": "bd-article-container"}),
     }
 
-    exclude_patterns = exclude_patterns or ["/api/", "/_tags/", "/api-reference/"]
+    exclude_patterns = exclude_patterns or [
+        "docs/getting_started", "/docs/reference/", "/docs/development/", "/docs/whatsnew/",
+    ]
     page_transformer = HTML2MarkdownTransformer(root_url_tags_mapping)
     urls = list(
         itertools.chain(
@@ -231,9 +214,9 @@ def create_vector_store(
 
 @workflow
 def create(
+    root_url_tags_mapping: Optional[dict] = None,
     splitter: str = "character",
     chunk_size: int = 2048,
-    root_url_tags_mapping: Optional[dict] = None,
     limit: Optional[int | float] = None,
     embedding_type: Optional[str] = "openai",
     exclude_patterns: Optional[list[str]] = None,
@@ -242,9 +225,9 @@ def create(
     Workflow for creating the vector store knowledge base.
     """
     docs = create_knowledge_base(
+        root_url_tags_mapping=root_url_tags_mapping,
         limit=limit,
         exclude_patterns=exclude_patterns,
-        root_url_tags_mapping=root_url_tags_mapping,
     )
     vector_store = create_vector_store(
         documents=docs,

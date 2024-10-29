@@ -34,7 +34,7 @@ class QuestionAndAnswers:
     requests=fk.Resources(cpu="2", mem="8Gi"),
     secret_requests=[fk.Secret(key="openai_api_key")],
     cache=True,
-    cache_version="0",
+    cache_version="2",
     environment={"OPENAI_API_TYPE": "chat"},
 )
 @openai_env_secret
@@ -67,14 +67,21 @@ def generate_qa_datapoints(
         6. If the context contains code, include a mix of questions where the answer is the code
            and higher level questions that require reasoning about the code.
         7. IMPORTANT: Place each question on a new line, with no numbering or prefixes.
+        8. IMPORTANT: Write the question as if you were a data scientist or analyst asking a question
+           on an online Q&A site like Stack Exchange.
 
         Questions:""",
     )
 
     answer_prompt = PromptTemplate(
         input_variables=["context", "question", "n_answers"],
-        template="""Given the following context and question, provide {n_answers} concise, thoughtful, and
-        distinct answers. Each answer should be provide a balanced perspective, analysis, or inference based
+        template="""
+        You are an assistant for question-answering tasks in the pandas python data analysis library.
+        Use only the context to answer the question. Make the answer as detailed but as concise as
+        possible.
+
+        Given the following context and question, provide {n_answers} distinct answers.
+        Each answer should be provide a balanced perspective, analysis, or inference based
         on the given context.
 
         Context: {context}
@@ -82,13 +89,14 @@ def generate_qa_datapoints(
         Question: {question}
 
         Requirements:
-        1. Provide {n_answers} distinct answers. Each answer should be 1 sentence long.
+        1. Provide {n_answers} distinct answers. Each answer can be as long as needed.
         2. While each answer will be different, individual answers should still be as comprehensive as
            possible and address all angles of the question.
-        3. Focus on delivering concise and impactful responses. Do not restate the question in the answers.
-        4. If the answer is not directly in the context, use reasonable inferences or analysis to provide
+        3. Focus on delivering the best answer possible given the context. Do not restate the question in the answers.
+        4. Include code snippets in the answers if they are relevant.
+        5. If the answer is not directly in the context, use reasonable inferences or analysis to provide
            possible answers.
-        5. IMPORTANT: Place each answer on a new line, with no numbering or prefixes.
+        6. Important: delimit each answer with a new line containing only the characters "---".
 
         Answers:""",
     )
@@ -109,7 +117,7 @@ def generate_qa_datapoints(
             {"context": document.page_content, "question": question, "n_answers": n_answers_per_question}
         )
         answers = [
-            ans.strip() for ans in answers_text.strip().split("\n") if ans.strip()
+            ans.strip() for ans in answers_text.strip().split("---") if ans.strip()
         ]
         qa_pairs.append(
             QuestionAndAnswers(
@@ -123,15 +131,29 @@ def generate_qa_datapoints(
     return qa_pairs
 
 
+QA_DATASET_TEMPLATE = """
+# ❓ Question and Answer Dataset
+
+This dataset contains questions and answers generated from the provided documents.
+
+- Number of questions: {n_questions}
+- Answers per question: {n_answers_per_question}
+
+## Preview
+
+{preview}
+"""
+
+
 @fk.task(
     container_image=image,
     requests=fk.Resources(cpu="2", mem="4Gi"),
     cache=True,
-    cache_version="0",
+    cache_version="2",
     enable_deck=True,
     deck_fields=[],
 )
-def create_dataset(questions_and_answers: List[List[QuestionAndAnswers]]) -> FlyteFile:
+def create_dataset(questions_and_answers: List[List[QuestionAndAnswers]], n_answers_per_question: int) -> FlyteFile:
     questions_and_answers_flat = [
         qa for qa_sublist in questions_and_answers for qa in qa_sublist
     ]
@@ -151,7 +173,14 @@ def create_dataset(questions_and_answers: List[List[QuestionAndAnswers]]) -> Fly
     with open(file_path, "w") as f:
         json.dump(qa_dataset, f, indent=4)
 
-    fk.Deck("QA Dataset", MarkdownRenderer().to_html(f"Number of questions: {len(qa_dataset)}"))
+    preview = "\n\n".join([f"```json\n{json.dumps(x, indent=4)}\n```" for x in qa_dataset[:5]])
+    fk.Deck("QA Dataset", MarkdownRenderer().to_html(
+        QA_DATASET_TEMPLATE.format(
+            n_questions=len(qa_dataset),
+            n_answers_per_question=n_answers_per_question,
+            preview=preview)
+        )
+    )
     return FlyteFile(path=file_path)
 
 
@@ -167,4 +196,4 @@ def create_qa_dataset(
         n_answers_per_question=n_answers_per_question,
     )
     questions_and_answers = fk.map_task(partial_task)(flyte_doc=documents)
-    return create_dataset(questions_and_answers=questions_and_answers)
+    return create_dataset(questions_and_answers, n_answers_per_question)

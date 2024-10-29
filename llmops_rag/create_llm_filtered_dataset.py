@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass, asdict
 from functools import partial
-from typing import Annotated
+from typing import Annotated, Optional
 
 import flytekit as fk
 import pandas as pd
@@ -19,7 +19,7 @@ from llmops_rag.utils import openai_env_secret
 QuestionAndAnswerDataset = fk.Artifact(name="question_and_answer_dataset")
 EvalDatasetArtifact = fk.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
 
-N_RETRIES = 30
+N_RETRIES = 10
 SCORE_THRESHOLD = 3
 
 
@@ -31,9 +31,9 @@ class Score:
 
 @dataclass
 class QualityScores:
-    groundedness: Score
-    relevance: Score
-    correctness_per_answer: list[Score]
+    groundedness: Optional[Score]
+    relevance: Optional[Score]
+    correctness_per_answer: list[Optional[Score]]
 
 
 @dataclass
@@ -96,8 +96,7 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
         template="""
         You will be given a question.
         Your task is to provide a rating representing how useful this question can be
-        to machine learning engineers and data scientists building data and ML pipelines with
-        Union and Flyte.
+        to data scientists, analysts, and ML engineers using the pandas python data analysis library.
 
         Give your response on a scale of 1 to 5, where 1 means that the question is not useful
         at all, and 5 means that the question is extremely useful.
@@ -167,7 +166,7 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
                 return chain.invoke(input)
             except Exception as e:
                 print(f"[Retry {i}] error: {e}")
-        raise Exception("Failed to get valid response from LLM")
+        return None
 
     groundedness_chain = groundedness_prompt | llm | ScoreParser()
     relevance_chain = relevance_prompt | llm | ScoreParser()
@@ -191,6 +190,7 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
     container_image=image,
     cache=True,
     cache_version="2",
+    retries=5,
 )
 def apply_llm_critic(dataset: FlyteFile) -> list[QualityScores]:
     """Applies the LLM critic to a dataset of question-answer pairs."""
@@ -215,6 +215,12 @@ def filter_dataset(dataset: FlyteFile, scores: list[QualityScores]) -> list[Refe
         qa_dataset = [QuestionAndAnswers(**x) for x in json.load(f)]
 
     for qa_datapoint, score in zip(qa_dataset, scores):
+        if (
+            any(x is None for x in [score.groundedness, score.relevance])
+            or any(x is None for x in score.correctness_per_answer)
+        ):
+            continue
+
         if score.groundedness.rating < SCORE_THRESHOLD or score.relevance.rating < SCORE_THRESHOLD:
             continue
 

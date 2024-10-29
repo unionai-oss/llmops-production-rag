@@ -1,31 +1,33 @@
 - condition_name: concise
-  rag_config:
-    chunk_size: 2048
-    limit: 10
-    prompt_template: |
-      You are an assistant for question-answering tasks in the biomedical domain.
-      Use only the following pieces of retrieved context to answer the question. 
-      If you don't know the answer, just say that you don't know. Make the answer as
-      detailed as possible. If the answer contains acronyms, make sure to expand on them.
+  chunk_size: 2048
+  limit: 10
+  prompt_template: |
+    You are an assistant for question-answering tasks relating to the pandas python
+    data analysis library.
 
-      Your responses are as concise as possible.
+    Use only the following pieces of retrieved context to answer the question.
+    If you don't know the answer, just say that you don't know. Make the answer as
+    detailed as possible. If the answer contains acronyms, make sure to expand on them.
 
-      Question: {question}
-      Context: {context}
-      Answer:
+    Your responses are as concise as possible.
+
+    Question: {question}
+    Context: {context}
+    Answer:
 
 - condition_name: polite
-  rag_config:
-    chunk_size: 2048
-    limit: 10
-    prompt_template: |
-      You are an assistant for question-answering tasks in the biomedical domain.
-      Use only the following pieces of retrieved context to answer the question. 
-      If you don't know the answer, just say that you don't know. Make the answer as
-      detailed as possible. If the answer contains acronyms, make sure to expand on them.
+  chunk_size: 2048
+  limit: 10
+  prompt_template: |
+    You are an assistant for question-answering tasks relating to the pandas python
+    data analysis library.
 
-      Your responses are as polite as possible.
+    Use only the following pieces of retrieved context to answer the question.
+    If you don't know the answer, just say that you don't know. Make the answer as
+    detailed as possible. If the answer contains acronyms, make sure to expand on them.
 
-      Question: {question}
-      Context: {context}
-      Answer:
+    Your responses are as polite as possible.
+
+    Question: {question}
+    Context: {context}
+    Answer:

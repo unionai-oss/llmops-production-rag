@@ -35,27 +35,22 @@ if IN_COLAB:
 Create the vector store:
 
 ```bash
-union run --remote llmops_rag/vector_store.py create --limit 30
+union run --remote llmops_rag/vector_store.py create --limit 10
 ```
 
 Then run the simple rag pipeline
 
 ```bash
-union run --remote llmops_rag/rag_basic.py run --question "Write a simple hello world workflow"
+union run --remote llmops_rag/rag_basic.py rag_basic --questions '["How do I read and write a pandas dataframe to csv format?"]'
 ```
 
 ## Bootstrapping an Evaluation Dataset
 
-First create a raw knowledge base:
+Then generate a question and answer dataset. This will use the raw knowledge base we created
+in the previous step.
 
 ```bash
-union run --remote llmops_rag/vector_store.py create_knowledge_base --limit 30
-```
-
-Then generate a question and answer dataset:
-
-```bash
-union run --remote llmops_rag/create_qa_dataset.py create_qa_dataset --n_questions_per_doc 1 --n_answers_per_question 5
+union run --remote llmops_rag/create_qa_dataset.py create_qa_dataset --n_questions_per_doc 5 --n_answers_per_question 5
 ```
 
 Filter the dataset with an LLM critic:

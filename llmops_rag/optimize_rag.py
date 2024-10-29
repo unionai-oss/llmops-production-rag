@@ -12,7 +12,7 @@ from flytekit.types.directory import FlyteDirectory
 from llmops_rag.config import RAGConfig
 from llmops_rag.image import image as rag_image
 from llmops_rag.vector_store import create as create_vector_store
-from llmops_rag.rag_basic import run as _run_rag_basic
+from llmops_rag.rag_basic import rag_basic
 from llmops_rag.utils import openai_env_secret, convert_fig_into_html
 
 
@@ -22,9 +22,8 @@ image = rag_image.with_packages(["nltk", "rouge-score", "seaborn"])
 
 
 @dataclass
-class HPOConfig:
-    condition_name: str
-    rag_config: RAGConfig
+class HPOConfig(RAGConfig):
+    condition_name: str = ""
 
 
 @dataclass
@@ -33,6 +32,13 @@ class Question:
     question: str
     reference_answer: str
     is_user_generated: bool
+
+
+@dataclass
+class RAGInput:
+    question: Question
+    vector_store: FlyteDirectory
+    prompt_template: str
 
 
 @dataclass
@@ -59,62 +65,63 @@ def prepare_questions(dataset: pd.DataFrame, n_answers: int) -> list[Question]:
 
 @fk.task(
     container_image=image,
-    requests=fk.Resources(cpu="2", mem="8Gi"),
-    secret_requests=[fk.Secret(key="openai_api_key")],
     cache=True,
     cache_version="1",
 )
-@openai_env_secret
-def run_rag_basic(
-    question: Question,
-    vector_store: FlyteDirectory,
-    prompt_template: str,
-) -> Answer:
-    return Answer(
-        answer=_run_rag_basic._workflow_function(
-            question=question.question,
-            vector_store=vector_store,
-            prompt_template=prompt_template,
-        ),
-        question_id=question.question_id,
-    )
+def prepare_answers(answers: list[str], questions: list[Question]) -> list[Answer]:
+    return [
+        Answer(
+            answer=answer,
+            question_id=question.question_id,
+        )
+        for answer, question in zip(answers, questions)
+    ]
 
 
-@fk.workflow
+@fk.dynamic(container_image=image, cache=True, cache_version="4")
 def generate_answers(
     questions: list[Question],
+    root_url_tags_mapping: Optional[dict] = None,
     splitter: str = "character",
     chunk_size: int = 2048,
     prompt_template: str = "",
-    root_url_tags_mapping: Optional[dict] = None,
-    limit: Optional[int] = None,
+    limit: Optional[int | float] = None,
     embedding_type: Optional[str] = "openai",
     exclude_patterns: Optional[list[str]] = None,
 ) -> list[Answer]:
     vector_store = create_vector_store(
+        root_url_tags_mapping=root_url_tags_mapping,
         splitter=splitter,
         chunk_size=chunk_size,
-        root_url_tags_mapping=root_url_tags_mapping,
         limit=limit,
         embedding_type=embedding_type,
         exclude_patterns=exclude_patterns,
     )
-    partial_rag = partial(
-        run_rag_basic,
+    answers = rag_basic(
+        questions=[question.question for question in questions],
         vector_store=vector_store,
         prompt_template=prompt_template,
     )
-    answers = fk.map_task(partial_rag, concurrency=25)(questions)
-    return answers
+    return prepare_answers(answers, questions)
 
 
-@fk.dynamic(container_image=image, cache=True, cache_version="2")
-def gridsearch(questions: list[Question], eval_configs: list[HPOConfig]) -> list[list[Answer]]:
+@fk.dynamic(container_image=image, cache=True, cache_version="4")
+def gridsearch(
+    questions: list[Question],
+    hpo_configs: list[HPOConfig],
+    root_url_tags_mapping: Optional[dict] = None,
+) -> list[list[Answer]]:
     answers = []
-    for config in eval_configs:
+    for config in hpo_configs:
         _answers = generate_answers(
             questions=questions,
-            **asdict(config.rag_config),
+            root_url_tags_mapping=root_url_tags_mapping,
+            splitter=config.splitter,
+            chunk_size=config.chunk_size,
+            exclude_patterns=config.exclude_patterns,
+            prompt_template=config.prompt_template,
+            limit=config.limit,
+            embedding_type=config.embedding_type,
         )
         answers.append(_answers)
     return answers
@@ -171,9 +178,9 @@ def traditional_nlp_eval(answers_dataset: pd.DataFrame) -> pd.DataFrame:
 
 DEFAULT_EVAL_PROMPT_TEMPLATE = """### Task Description:
 You are an expert in judging the correctness of answers relating
-to Flyte and Union queries. Given a question and a reference answer,
-determine if the candidate answer is equivalent or better than the
-reference answer in terms of correctness.
+to pandas, a python data analysis library. Given a question and a
+reference answer, determine if the candidate answer is equivalent or
+better than the reference answer in terms of correctness.
 
 ### Question:
 {question}
@@ -231,7 +238,7 @@ def llm_judge_eval(
     secret_requests=[fk.Secret(key="openai_api_key")],
     requests=fk.Resources(cpu="4", mem="8Gi"),
     cache=True,
-    cache_version="5",
+    cache_version="6",
 )
 @openai_env_secret
 def evaluate(
@@ -261,7 +268,7 @@ def evaluate(
     )
 
     g = sns.FacetGrid(analysis_df, col="metric", sharey=False)
-    g.map_dataframe(sns.barplot, x="condition_name", y="score")
+    g.map_dataframe(sns.barplot, y="condition_name", x="score", orient="h")
     g.add_legend()
 
     decks = fk.current_context().decks
@@ -275,12 +282,13 @@ def evaluate(
 @fk.workflow
 def optimize_rag(
     hpo_configs: list[HPOConfig],
+    root_url_tags_mapping: Optional[dict] = None,
     eval_dataset: Annotated[pd.DataFrame, EvalDatasetArtifact] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
     eval_prompt_template: Optional[str] = None,
-    n_answers: int = 5,
+    n_answers: int = 1,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     questions = prepare_questions(eval_dataset, n_answers)
-    answers = gridsearch(questions, hpo_configs)
+    answers = gridsearch(questions, hpo_configs, root_url_tags_mapping)
     answers_dataset = combine_answers(answers, hpo_configs, questions)
     evaluation, evalution_summary = evaluate(
         answers_dataset, eval_prompt_template

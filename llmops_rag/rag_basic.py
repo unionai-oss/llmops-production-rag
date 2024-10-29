@@ -20,10 +20,10 @@ from llmops_rag.utils import openai_env_secret
 VectorStore = Artifact(name="vector-store")
 
 DEFAULT_PROMPT_TEMPLATE = """
-You are an assistant for question-answering tasks in the biomedical domain.
+You are an assistant for question-answering tasks in the pandas python data analysis library.
 Use only the following pieces of retrieved context to answer the question. 
 If you don't know the answer, just say that you don't know. Make the answer as
-detailed as possible. If the answer contains acronyms, make sure to expand on them.
+detailed as possible.
 
 Question: {question}
 Context: {context}
@@ -43,9 +43,9 @@ actor = ActorEnvironment(
 @actor.task(enable_deck=True, deck_fields=[])
 @openai_env_secret
 def retrieve(
-    question: str,
+    questions: list[str],
     vector_store: FlyteDirectory,
-) -> str:
+) -> list[str]:
     from langchain_community.vectorstores import FAISS
     from langchain_openai import OpenAIEmbeddings
 
@@ -59,18 +59,22 @@ def retrieve(
         search_type="similarity",
         search_kwargs={"k": 8},
     )
-    context = "\n\n".join(doc.page_content for doc in retriever.invoke(question))
-    Deck("Context", MarkdownRenderer().to_html(context))
-    return context
+    contexts = []
+    for question in questions:
+        context = "\n\n".join(doc.page_content for doc in retriever.invoke(question))
+        contexts.append(context)
+
+    Deck("Context", MarkdownRenderer().to_html(contexts[0]))
+    return contexts
 
 
 @actor.task(enable_deck=True, deck_fields=[])
 @openai_env_secret
 def generate(
-    question: str,
-    context: str,
+    questions: list[str],
+    contexts: list[str],
     prompt_template: Optional[str] = None,
-) -> str:
+) -> list[str]:
     from langchain_core.output_parsers import StrOutputParser
     from langchain_core.prompts import PromptTemplate
     from langchain_openai import ChatOpenAI
@@ -79,20 +83,24 @@ def generate(
     llm = ChatOpenAI(model_name="gpt-4o", temperature=0.9)
 
     chain = prompt | llm | StrOutputParser()
-    answer = chain.invoke({"question": question, "context": context})
-    Deck("Answer", MarkdownRenderer().to_html(answer))
-    return answer
+    answers = []
+    for question, context in zip(questions, contexts):
+        answer = chain.invoke({"question": question, "context": context})
+        answers.append(answer)
+
+    Deck("Answer", MarkdownRenderer().to_html(answers[0]))
+    return answers
 
 
 @workflow
-def run(
-    question: str,
+def rag_basic(
+    questions: list[str],
     vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default
     prompt_template: Optional[str] = None,
-) -> str:
-    context = retrieve(question, vector_store)
+) -> list[str]:
+    contexts = retrieve(questions, vector_store)
     return generate(
-        question=question,
-        context=context,
+        questions=questions,
+        contexts=contexts,
         prompt_template=prompt_template,
     )
