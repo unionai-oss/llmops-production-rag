@@ -76,7 +76,7 @@ def generate(
     from langchain_openai import ChatOpenAI
 
     prompt = PromptTemplate.from_template(prompt_template or DEFAULT_PROMPT_TEMPLATE)
-    llm = ChatOpenAI(model_name="gpt-4-turbo", temperature=0.9)
+    llm = ChatOpenAI(model_name="gpt-4o", temperature=0.9)
 
     chain = prompt | llm | StrOutputParser()
     answer = chain.invoke({"question": question, "context": context})

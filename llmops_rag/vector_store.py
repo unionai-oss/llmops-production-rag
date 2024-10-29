@@ -48,13 +48,12 @@ FINAL ANSWER:
 @task(
     container_image=image,
     cache=True,
-    cache_version="4",
+    cache_version="6",
     requests=Resources(cpu="2", mem="8Gi"),
     enable_deck=True,
 )
 def create_knowledge_base(
     root_url_tags_mapping: Optional[dict] = None,
-    include_union: bool | None = None,
     limit: Optional[int | float] = None,
     exclude_patterns: Optional[list[str]] = None,
 ) -> Annotated[list[CustomDocument], KnowledgeBase]:
@@ -64,24 +63,13 @@ def create_knowledge_base(
     from langchain_community.document_loaders import AsyncHtmlLoader
     from llmops_rag.document import get_links, HTML2MarkdownTransformer
 
-    include_union = include_union if isinstance(include_union, bool) else False
+    root_url_tags_mapping = root_url_tags_mapping or {
+        "https://docs.flyte.org/en/latest/": ("article", {"class": "bd-article"}),
+        "https://docs.union.ai/byoc/": ("article", {"class": "bd-article"}),
+        "https://docs.union.ai/serverless/": ("article", {"class": "bd-article"}),
+    }
 
-    if root_url_tags_mapping is None:
-        root_url_tags_mapping = {
-            "https://docs.flyte.org/en/latest/": ("article", {"class": "bd-article"}),
-        }
-    if include_union:
-        root_url_tags_mapping.update(
-            {
-                "https://docs.union.ai/byoc/": ("article", {"class": "bd-article"}),
-                "https://docs.union.ai/serverless/": (
-                    "article",
-                    {"class": "bd-article"},
-                ),
-            }
-        )
-
-    exclude_patterns = exclude_patterns or ["/api/", "/_tags/"]
+    exclude_patterns = exclude_patterns or ["/api/", "/_tags/", "/api-reference/"]
     page_transformer = HTML2MarkdownTransformer(root_url_tags_mapping)
     urls = list(
         itertools.chain(
@@ -170,10 +158,10 @@ This artifact is a vector store of {len(document_chunks)} document chunks using 
 )
 @openai_env_secret
 def create_vector_store(
-    documents: list[CustomDocument] = KnowledgeBase.query(),
-    splitter: str | None = None,
-    chunk_size: int | float | None = None,
-    embedding_type: str | None = None,
+    documents: list[CustomDocument],
+    splitter: str,
+    chunk_size: int,
+    embedding_type: Optional[str] = None,
 ) -> Annotated[FlyteDirectory, VectorStore]:
     """
     Create the search index.
@@ -245,18 +233,18 @@ def create_vector_store(
 def create(
     splitter: str = "character",
     chunk_size: int = 2048,
-    include_union: bool = False,
+    root_url_tags_mapping: Optional[dict] = None,
     limit: Optional[int | float] = None,
-    embedding_type: str = "openai",
+    embedding_type: Optional[str] = "openai",
     exclude_patterns: Optional[list[str]] = None,
 ) -> FlyteDirectory:
     """
     Workflow for creating the vector store knowledge base.
     """
     docs = create_knowledge_base(
-        include_union=include_union,
         limit=limit,
         exclude_patterns=exclude_patterns,
+        root_url_tags_mapping=root_url_tags_mapping,
     )
     vector_store = create_vector_store(
         documents=docs,

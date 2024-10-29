@@ -1,6 +1,5 @@
 """Evaluate a RAG workflow."""
 
-import os
 from dataclasses import dataclass, asdict
 from functools import partial
 from typing import Annotated, Optional
@@ -14,17 +13,18 @@ from llmops_rag.config import RAGConfig
 from llmops_rag.image import image as rag_image
 from llmops_rag.vector_store import create as create_vector_store
 from llmops_rag.rag_basic import run as _run_rag_basic
-from llmops_rag.utils import openai_env_secret
+from llmops_rag.utils import openai_env_secret, convert_fig_into_html
 
 
-EvalDatasetArtifact = fk.Artifact(name="test-eval-dataset")
+EvalDatasetArtifact = fk.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
 
 image = rag_image.with_packages(["nltk", "rouge-score", "seaborn"])
 
 
 @dataclass
-class HPOConfig(RAGConfig):
-    condition_name: str = ""
+class HPOConfig:
+    condition_name: str
+    rag_config: RAGConfig
 
 
 @dataclass
@@ -81,18 +81,28 @@ def run_rag_basic(
 
 
 @fk.workflow
-def generate_answers(questions: list[Question], config: RAGConfig) -> list[Answer]:
+def generate_answers(
+    questions: list[Question],
+    splitter: str = "character",
+    chunk_size: int = 2048,
+    prompt_template: str = "",
+    root_url_tags_mapping: Optional[dict] = None,
+    limit: Optional[int] = None,
+    embedding_type: Optional[str] = "openai",
+    exclude_patterns: Optional[list[str]] = None,
+) -> list[Answer]:
     vector_store = create_vector_store(
-        splitter=config.splitter,
-        chunk_size=config.chunk_size,
-        include_union=config.include_union,
-        limit=config.limit,
-        embedding_type=config.embedding_type,
+        splitter=splitter,
+        chunk_size=chunk_size,
+        root_url_tags_mapping=root_url_tags_mapping,
+        limit=limit,
+        embedding_type=embedding_type,
+        exclude_patterns=exclude_patterns,
     )
     partial_rag = partial(
         run_rag_basic,
         vector_store=vector_store,
-        prompt_template=config.prompt_template,
+        prompt_template=prompt_template,
     )
     answers = fk.map_task(partial_rag, concurrency=25)(questions)
     return answers
@@ -104,14 +114,7 @@ def gridsearch(questions: list[Question], eval_configs: list[HPOConfig]) -> list
     for config in eval_configs:
         _answers = generate_answers(
             questions=questions,
-            config=RAGConfig(
-                prompt_template=config.prompt_template,
-                chunk_size=config.chunk_size,
-                include_union=config.include_union,
-                limit=config.limit,
-                embedding_type=config.embedding_type,
-                exclude_patterns=config.exclude_patterns,
-            ),
+            **asdict(config.rag_config),
         )
         answers.append(_answers)
     return answers
@@ -193,7 +196,7 @@ def llm_judge_eval(
     from langchain_core.prompts import PromptTemplate
     from langchain_openai import ChatOpenAI
 
-    model = ChatOpenAI(model_name="gpt-4-turbo", temperature=0.9)
+    model = ChatOpenAI(model_name="gpt-4o", temperature=0.9)
     prompt = PromptTemplate.from_template(
         eval_prompt_template or DEFAULT_EVAL_PROMPT_TEMPLATE
     )
@@ -264,17 +267,15 @@ def evaluate(
     decks = fk.current_context().decks
     decks.insert(0, fk.Deck("Evaluation", TopFrameRenderer(10).to_html(evaluation)))
     decks.insert(0, fk.Deck("Evaluation Summary", TopFrameRenderer(10).to_html(evaluation_summary)))
-    decks.insert(0, fk.Deck("Benchmarking Results", _convert_fig_into_html(g.figure)))
+    decks.insert(0, fk.Deck("Benchmarking Results", convert_fig_into_html(g.figure)))
 
     return evaluation, evaluation_summary
 
 
 @fk.workflow
-def run(
+def optimize_rag(
     hpo_configs: list[HPOConfig],
-    eval_dataset: Annotated[
-        pd.DataFrame, EvalDatasetArtifact
-    ] = EvalDatasetArtifact.query(),
+    eval_dataset: Annotated[pd.DataFrame, EvalDatasetArtifact] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
     eval_prompt_template: Optional[str] = None,
     n_answers: int = 5,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -285,13 +286,3 @@ def run(
         answers_dataset, eval_prompt_template
     )
     return evaluation, evalution_summary
-
-
-def _convert_fig_into_html(fig) -> str:
-    import io
-    import base64
-
-    img_buf = io.BytesIO()
-    fig.savefig(img_buf, format="png")
-    img_base64 = base64.b64encode(img_buf.getvalue()).decode()
-    return f'<img src="data:image/png;base64,{img_base64}" alt="Rendered Image" />'

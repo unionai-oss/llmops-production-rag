@@ -1,6 +1,16 @@
+- condition_name: chunksize-256
+  rag_config:
+    chunk_size: 256
+    limit: 100
+- condition_name: chunksize-512
+  rag_config:
+    chunk_size: 512
+    limit: 100
 - condition_name: chunksize-1024
-  chunk_size: 1024
-  limit: 100
+  rag_config:
+    chunk_size: 1024
+    limit: 100
 - condition_name: chunksize-2048
-  chunk_size: 2048
-  limit: 100
+  rag_config:
+    chunk_size: 2048
+    limit: 100

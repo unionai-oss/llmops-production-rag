@@ -35,7 +35,7 @@ if IN_COLAB:
 Create the vector store:
 
 ```bash
-union run --remote llmops_rag/vector_store.py create --include_union --limit 10
+union run --remote llmops_rag/vector_store.py create --limit 30
 ```
 
 Then run the simple rag pipeline
@@ -49,14 +49,42 @@ union run --remote llmops_rag/rag_basic.py run --question "Write a simple hello 
 First create a raw knowledge base:
 
 ```bash
-union run --remote llmops_rag/vector_store.py create_knowledge_base --include_union --limit 10
+union run --remote llmops_rag/vector_store.py create_knowledge_base --limit 30
 ```
 
 Then generate a question and answer dataset:
 
 ```bash
-union run --remote llmops_rag/create_qa_dataset.py run --n_questions 1 --n_answers 5
+union run --remote llmops_rag/create_qa_dataset.py create_qa_dataset --n_questions_per_doc 1 --n_answers_per_question 5
 ```
+
+Filter the dataset with an LLM critic:
+
+```bash
+union run --remote llmops_rag/create_llm_filtered_dataset.py create_llm_filtered_dataset
+```
+
+## RAG Hyperparameter Optimization
+
+Evaluate a RAG experiment:
+
+```bash
+union run --remote llmops_rag/optimize_rag.py optimize_rag --hpo_configs config/prompt_experiment.yaml
+```
+
+Experiment with different chunksizes:
+
+```bash
+union run --remote llmops_rag/optimize_rag.py optimize_rag --hpo_configs config/chunksize_experiment.yaml
+```
+
+Experiment with different splitters:
+
+```bash
+union run --remote llmops_rag/optimize_rag.py optimize_rag --hpo_configs config/splitter_experiment.yaml
+```
+
+## Collect User Feedback
 
 Register the data annotation workflow:
 
@@ -70,9 +98,7 @@ Run a single annotation session to test it out:
 union run --remote llmops_rag/annotate_data.py create_annotation_set --random_seed 42 --n_samples 10
 ```
 
-### Annotator App
-
-Create an api key
+Next, run the streamlit app. First, create an api key
 
 ```bash
 union create app annotation-app
@@ -104,33 +130,8 @@ Run the app
 streamlit run streamlit/app.py
 ```
 
-## RAG Hyperparameter Optimization
-
 Create the eval dataset:
 
 ```bash
 union run --remote llmops_rag/create_annotated_dataset.py create --min_annotations_per_question 1
 ```
-
-Evaluate a RAG experiment:
-
-```bash
-union run --remote llmops_rag/optimize_rag.py run --hpo_configs config/prompt_experiment.yaml
-```
-
-Experiment with different chunksizes:
-
-```bash
-union run --remote llmops_rag/optimize_rag.py run --hpo_configs config/chunksize_experiment.yaml
-```
-
-Experiment with different splitters:
-
-```bash
-union run --remote llmops_rag/optimize_rag.py run --hpo_configs config/splitter_experiment.yaml
-```
-
-TODO:
-- implement LLM as a judge to create annotated dataset
-- implement random search
-- implement bayesian hpo
