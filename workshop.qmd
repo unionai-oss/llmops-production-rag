@@ -26,6 +26,7 @@ if IN_COLAB:
     !git clone https://github.com/unionai-oss/llmops-production-rag.git
     %cd llmops-production-rag
     %pip install -r requirements.lock.txt
+    %pip install gradio
 ```
 
 

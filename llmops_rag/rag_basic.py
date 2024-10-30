@@ -27,9 +27,9 @@ ollama_instance = fk_inference.Ollama(
 
 actor = ActorEnvironment(
     name="retriever",
-    ttl_seconds=300,
+    ttl_seconds=180,
     container_image=image,
-    replica_count=8,
+    replica_count=1,
     requests=fk.Resources(cpu="2", mem="8Gi"),
     secret_requests=[fk.Secret(key="openai_api_key")],
 )
@@ -37,7 +37,7 @@ actor = ActorEnvironment(
 
 ollama_actor = ActorEnvironment(
     name="generator",
-    ttl_seconds=300,
+    ttl_seconds=180,
     container_image=image,
     replica_count=1,
     requests=fk.Resources(gpu="0", mem="8Gi"),
