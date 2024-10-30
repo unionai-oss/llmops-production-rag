@@ -72,15 +72,89 @@ If you have issues with the secret, you can delete it by uncommenting the code c
 Create the vector store:
 
 ```{python}
-!union run --remote llmops_rag/vector_store.py create_vector_store --limit 10
+%%writefile vector_store.py
+import flytekit as fk
+from typing import Optional
+from flytekit.types.directory import FlyteDirectory
+from llmops_rag.vector_store import create_knowledge_base, chunk_and_embed_documents
+
+
+@fk.workflow
+def create_vector_store(
+    root_url_tags_mapping: Optional[dict] = None,
+    splitter: str = "character",
+    chunk_size: int = 2048,
+    limit: Optional[int | float] = None,
+    embedding_model: Optional[str] = "text-embedding-ada-002",
+    exclude_patterns: Optional[list[str]] = None,
+) -> FlyteDirectory:
+    """
+    Workflow for creating the vector store knowledge base.
+    """
+    docs = create_knowledge_base(
+        root_url_tags_mapping=root_url_tags_mapping,
+        limit=limit,
+        exclude_patterns=exclude_patterns,
+    )
+    vector_store = chunk_and_embed_documents(
+        documents=docs,
+        splitter=splitter,
+        chunk_size=chunk_size,
+        embedding_model=embedding_model,
+    )
+    return vector_store
+```
+
+```{python}
+!union run --remote vector_store.py create_vector_store --limit 10
 ```
 
 ⚠️ Note: The above command will take a few minutes to complete since we're building our container for the first time.
 
-Then run the simple rag pipeline
+Then implement a basic RAG pipeline:
 
 ```{python}
-!union run --remote llmops_rag/rag_basic.py rag_basic --questions '["How do I read and write a pandas dataframe to csv format?"]'
+%%writefile rag_basic.py
+import flytekit as fk
+from typing import Optional
+from flytekit.types.directory import FlyteDirectory
+from llmops_rag.vector_store import VectorStore
+from llmops_rag.rag_basic import retrieve, generate
+
+
+@fk.workflow
+def rag_basic(
+    questions: list[str],
+    vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default
+    embedding_model: str = "text-embedding-ada-002",
+    generation_model: str = "gpt-4o-mini",
+    search_type: str = "similarity",
+    rerank: bool = False,
+    num_retrieved_docs: int = 20,
+    num_docs_final: int = 5,
+    prompt_template: Optional[str] = None,
+) -> list[str]:
+    contexts = retrieve(
+        questions=questions,
+        vector_store=vector_store,
+        embedding_model=embedding_model,
+        search_type=search_type,
+        rerank=rerank,
+        num_retrieved_docs=num_retrieved_docs,
+        num_docs_final=num_docs_final,
+    )
+    return generate(
+        questions=questions,
+        contexts=contexts,
+        generation_model=generation_model,
+        prompt_template=prompt_template,
+    )
+```
+
+Then run it with `union run`:
+
+```{python}
+!union run --remote rag_basic.py rag_basic --questions '["How do I read and write a pandas dataframe to csv format?"]'
 ```
 
 You can also run the pipeline with an Ollama server:
@@ -94,14 +168,33 @@ You can also run the pipeline with an Ollama server:
 Let's use launch plan schedules to maintain a fresh vector store.
 
 ```{python}
-!union register llmops_rag/vector_store.py
-!union launchplan create_vector_store_lp --activate
+%%writefile vector_store_launchplan.py
+import flytekit as fk
+from datetime import timedelta
+from vector_store import create_vector_store
+
+
+schedule_vector_store_lp = fk.LaunchPlan.get_or_create(
+    name="schedule_vector_store_lp",
+    workflow=create_vector_store,
+    default_inputs={
+        "limit": 10,
+    },
+    schedule=fk.FixedRate(
+        duration=timedelta(minutes=3)
+    )
+)
+```
+
+```{python}
+!union register vector_store_launchplan.py
+!union launchplan schedule_vector_store_lp --activate
 ```
 
 Go to the Serverless dashboard to see the schedule in action. Then you can deactivate it with:
 
 ```{python}
-!union launchplan create_vector_store_lp --deactivate
+!union launchplan schedule_vector_store_lp --deactivate
 ```
 
 ### 💻 Run RAG pipeline with Gradio App
@@ -134,13 +227,54 @@ Then generate a question and answer dataset. This will use the raw knowledge bas
 in the previous step.
 
 ```{python}
-!union run --remote llmops_rag/create_qa_dataset.py create_qa_dataset --n_questions_per_doc 5 --n_answers_per_question 5
+%%writefile create_qa_dataset.py
+import flytekit as fk
+from llmops_rag.create_qa_dataset import generate_qa_datapoints, create_dataset
+from llmops_rag.document import CustomDocument
+from llmops_rag.vector_store import KnowledgeBase
+
+
+@fk.workflow
+def create_qa_dataset(
+    documents: list[CustomDocument] = KnowledgeBase.query(),
+    n_questions_per_doc: int = 1,
+    n_answers_per_question: int = 5,
+) -> Annotated[FlyteFile, QuestionAndAnswerDataset]:
+    partial_task = functools.partial(
+        generate_qa_datapoints,
+        n_questions_per_doc=n_questions_per_doc,
+        n_answers_per_question=n_answers_per_question,
+    )
+    questions_and_answers = fk.map_task(partial_task)(flyte_doc=documents)
+    return create_dataset(questions_and_answers, n_answers_per_question)
+```
+
+```{python}
+!union run --remote create_qa_dataset.py create_qa_dataset --n_questions_per_doc 5 --n_answers_per_question 5
 ```
 
 Filter the dataset with an LLM critic:
 
 ```{python}
-!union run --remote llmops_rag/create_llm_filtered_dataset.py create_llm_filtered_dataset
+%%writefile create_llm_filtered_dataset.py
+import flytekit as fk
+from llmops_rag.create_llm_filtered_dataset import apply_llm_critic, filter_dataset, prepare_dataset
+from llmops_rag.create_qa_dataset import QuestionAndAnswerDataset
+from flytekit.types.file import FlyteFile
+import pandas as pd
+
+
+@fk.workflow
+def create_llm_filtered_dataset(
+    dataset: FlyteFile = QuestionAndAnswerDataset.query(),
+) -> pd.DataFrame:
+    scores = apply_llm_critic(dataset)
+    reference_answers = filter_dataset(dataset, scores)
+    return prepare_dataset(reference_answers)
+```
+
+```{python}
+!union run --remote create_llm_filtered_dataset.py create_llm_filtered_dataset
 ```
 
 
@@ -149,7 +283,46 @@ Filter the dataset with an LLM critic:
 Experiment with different embedding models:
 
 ```{python}
-!union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/embedding_model_experiment.yaml
+%%writefile optimize_rag.py
+import flytekit as fk
+from typing import Optional
+from llmops_rag.optimize_rag import (
+    GridSearchConfig,
+    prepare_hpo_configs,
+    prepare_questions,
+    gridsearch,
+    combine_answers,
+    evaluate,
+    report,
+)
+from llmops_rag.create_llm_filtered_dataset import EvalDatasetArtifact
+import pandas as pd
+
+
+@fk.workflow
+def optimize_rag(
+    gridsearch_config: GridSearchConfig,
+    root_url_tags_mapping: Optional[dict] = None,
+    exclude_patterns: Optional[list[str]] = None,
+    limit: Optional[int] = 10,
+    eval_dataset: Annotated[pd.DataFrame, EvalDatasetArtifact] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
+    eval_prompt_template: Optional[str] = None,
+    n_answers: int = 1,
+) -> RAGConfig:
+    hpo_configs = prepare_hpo_configs(gridsearch_config)
+    questions = prepare_questions(eval_dataset, n_answers)
+    answers = gridsearch(questions, hpo_configs, root_url_tags_mapping, exclude_patterns, limit)
+    answers_dataset = combine_answers(answers, hpo_configs, questions)
+    best_config, evaluation, evalution_summary = evaluate(
+        answers_dataset, eval_prompt_template
+    )
+    report(evaluation, evalution_summary)
+    return best_config
+
+```
+
+```{python}
+!union run --remote optimize_rag.py optimize_rag --gridsearch_config config/embedding_model_experiment.yaml
 ```
 
 ### 🧪 More experiments to run
@@ -157,33 +330,114 @@ Experiment with different embedding models:
 Experiment with different chunksizes:
 
 ```{python}
-!union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/chunksize_experiment.yaml
+!union run --remote optimize_rag.py optimize_rag --gridsearch_config config/chunksize_experiment.yaml
 ```
 
 Experiment with different splitters:
 
 ```{python}
-!union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/splitter_experiment.yaml
+!union run --remote optimize_rag.py optimize_rag --gridsearch_config config/splitter_experiment.yaml
 ```
 
 Experiment with reranking:
 
 ```{python}
-!union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/reranking_experiment.yaml
+!union run --remote optimize_rag.py optimize_rag --gridsearch_config config/reranking_experiment.yaml
 ```
 
 Experiment with document retrieval:
 
 ```{python}
-!union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/search_params_experiment.yaml
+!union run --remote optimize_rag.py optimize_rag --gridsearch_config config/search_params_experiment.yaml
 ```
 
 ## 🔄 Putting it all together into a reactive pipeline
 
+```{python}
+%%writefile reactive_pipeline.py
+from typing import Annotated, Optional
+from datetime import timedelta
+
+import flytekit as fk
+import pandas as pd
+from union.artifacts import OnArtifact
+
+from llmops_rag.document import CustomDocument
+from llmops_rag.create_qa_dataset import create_qa_dataset
+from llmops_rag.create_llm_filtered_dataset import create_llm_filtered_dataset, EvalDatasetArtifact
+from llmops_rag.optimize_rag import optimize_rag, GridSearchConfig
+from llmops_rag.vector_store import create_knowledge_base, KnowledgeBase
+
+
+@fk.workflow
+def knowledge_base_workflow(
+    root_url_tags_mapping: Optional[dict] = None,
+    limit: Optional[int | float] = None,
+    exclude_patterns: Optional[list[str]] = None,
+) -> list[CustomDocument]:
+    return create_knowledge_base(
+        root_url_tags_mapping=root_url_tags_mapping,
+        limit=limit,
+        exclude_patterns=exclude_patterns,
+    ).with_overrides(cache=False)
+
+
+@fk.workflow
+def create_eval_dataset(
+    documents: list[CustomDocument],
+    n_questions_per_doc: int = 1,
+    n_answers_per_question: int = 5,
+) -> pd.DataFrame:
+    qa_dataset = create_qa_dataset(
+        documents=documents,
+        n_questions_per_doc=n_questions_per_doc,
+        n_answers_per_question=n_answers_per_question,
+    )
+    return create_llm_filtered_dataset(dataset=qa_dataset)
+
+
+knowledge_base_lp = fk.LaunchPlan.get_or_create(
+    knowledge_base_workflow,
+    name="knowledge_base_lp",
+    default_inputs={"limit": 10},
+    schedule=fk.FixedRate(duration=timedelta(minutes=3))
+)
+
+create_eval_dataset_lp = fk.LaunchPlan.get_or_create(
+    create_eval_dataset,
+    name="create_eval_dataset_lp",
+    trigger=OnArtifact(
+        trigger_on=KnowledgeBase,
+        inputs={"documents": KnowledgeBase.query()},
+    )
+)
+
+optimize_rag_lp = fk.LaunchPlan.get_or_create(
+    optimize_rag,
+    name="optimize_rag_lp",
+    default_inputs={
+        "gridsearch_config": GridSearchConfig(
+            embedding_model=[
+                "text-embedding-ada-002",
+                "text-embedding-3-small",
+                "text-embedding-3-large",
+            ],
+            chunk_size=[256],
+            splitter=["recursive"],
+        ),
+    },
+    trigger=OnArtifact(
+        trigger_on=EvalDatasetArtifact,
+        inputs={"eval_dataset": EvalDatasetArtifact.query()},
+    )
+)
+
+```
+
 Register and activate the reactive pipeline:
 
 ```{python}
-!union register llmops_rag/reactive_pipeline.py
+!union register reactive_pipeline.py
 !union launchplan knowledge_base_lp --activate
 !union launchplan create_eval_dataset_lp --activate
 !union launchplan optimize_rag_lp --activate
