@@ -2,18 +2,10 @@
 
 import asyncio
 import itertools
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Optional
 
-from flytekit import (
-    task,
-    workflow,
-    Artifact,
-    Secret,
-    Resources,
-)
-from flytekit.core.artifact import Inputs
+import flytekit as fk
 from flytekit.types.directory import FlyteDirectory
 from flytekit.types.file import FlyteFile
 from union.artifacts import DataCard
@@ -24,15 +16,15 @@ from llmops_rag.utils import openai_env_secret
 
 
 
-KnowledgeBase = Artifact(name="knowledge-base")
-VectorStore = Artifact(name="vector-store")
+KnowledgeBase = fk.Artifact(name="knowledge-base")
+VectorStore = fk.Artifact(name="vector-store")
 
 
-@task(
+@fk.task(
     container_image=image,
     cache=True,
     cache_version="6",
-    requests=Resources(cpu="2", mem="8Gi"),
+    requests=fk.Resources(cpu="2", mem="8Gi"),
     enable_deck=True,
 )
 def create_knowledge_base(
@@ -131,12 +123,12 @@ This artifact is a vector store of {len(document_chunks)} document chunks using 
 """
 
 
-@task(
+@fk.task(
     container_image=image,
     cache=True,
     cache_version="3",
-    requests=Resources(cpu="2", mem="8Gi"),
-    secret_requests=[Secret(key="openai_api_key")],
+    requests=fk.Resources(cpu="2", mem="8Gi"),
+    secret_requests=[fk.Secret(key="openai_api_key")],
     enable_deck=True,
 )
 @openai_env_secret
@@ -207,7 +199,7 @@ def create_vector_store(
     )
 
 
-@workflow
+@fk.workflow
 def create(
     root_url_tags_mapping: Optional[dict] = None,
     splitter: str = "character",
