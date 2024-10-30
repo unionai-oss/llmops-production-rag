@@ -63,7 +63,7 @@ class Answer:
 @fk.task(
     container_image=image,
     cache=True,
-    cache_version="1",
+    cache_version="2",
 )
 def prepare_hpo_configs(gridsearch_config: GridSearchConfig) -> list[HPOConfig]:
     gridsearch_config = asdict(gridsearch_config)
@@ -77,8 +77,8 @@ def prepare_hpo_configs(gridsearch_config: GridSearchConfig) -> list[HPOConfig]:
         for key, value in zip(keys, values):
             config[key] = value
             _key = "_".join(x[:3] for x in key.split("_"))
-            if len(str(value)) > 10:
-                value = str(value)[:10]
+            if len(str(value)) > 100:
+                value = str(value)[:100]
                 value = value.replace(" ", "-")
             name.append(f"{_key}={value}")
         name = ":".join(name)
@@ -118,7 +118,7 @@ def prepare_answers(answers: list[str], questions: list[Question]) -> list[Answe
     ]
 
 
-@fk.dynamic(container_image=image, cache=True, cache_version="5")
+@fk.dynamic(container_image=image, cache=True, cache_version="6")
 def generate_answers(
     questions: list[Question],
     root_url_tags_mapping: Optional[dict] = None,
@@ -156,7 +156,7 @@ def generate_answers(
     return prepare_answers(answers, questions)
 
 
-@fk.dynamic(container_image=image, cache=True, cache_version="5")
+@fk.dynamic(container_image=image, cache=True, cache_version="7")
 def gridsearch(
     questions: list[Question],
     hpo_configs: list[HPOConfig],
@@ -297,24 +297,21 @@ def llm_judge_eval(
 @openai_env_secret
 def evaluate(
     answers_dataset: pd.DataFrame,
-    metric: Optional[str] = None,
     eval_prompt_template: Optional[str] = None,
 ) -> tuple[RAGConfig, pd.DataFrame, pd.DataFrame]:
 
     evaluation = traditional_nlp_eval(answers_dataset)
     evaluation = llm_judge_eval(evaluation, eval_prompt_template)
 
-    metric = metric or "llm_correctness_score"
+    metrics = ["llm_correctness_score", "rouge1_f1", "bleu_score"]
     evaluation_summary = (
         evaluation
-        .groupby([*HPOConfig.__dataclass_fields__])[
-            ["bleu_score", "rouge1_f1", "llm_correctness_score"]
-        ]
+        .groupby([*HPOConfig.__dataclass_fields__])[metrics]
         .mean()
         .reset_index()
     )
 
-    sorted_df = evaluation_summary.sort_values(by=metric, ascending=False)
+    sorted_df = evaluation_summary.sort_values(by=metrics, ascending=False)
     best_config = sorted_df[[*RAGConfig.__dataclass_fields__]].iloc[0].to_dict()
     return RAGConfig(**best_config), evaluation, evaluation_summary
 
@@ -353,7 +350,7 @@ def optimize_rag(
     limit: Optional[int] = 10,
     eval_dataset: Annotated[pd.DataFrame, EvalDatasetArtifact] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
     eval_prompt_template: Optional[str] = None,
-    n_answers: int = 5,
+    n_answers: int = 1,
 ) -> RAGConfig:
     hpo_configs = prepare_hpo_configs(gridsearch_config)
     questions = prepare_questions(eval_dataset, n_answers)

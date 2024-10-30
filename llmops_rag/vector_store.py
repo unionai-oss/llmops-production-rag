@@ -2,6 +2,7 @@
 
 import asyncio
 import itertools
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -31,6 +32,7 @@ def create_knowledge_base(
     root_url_tags_mapping: Optional[dict] = None,
     limit: Optional[int | float] = None,
     exclude_patterns: Optional[list[str]] = None,
+    _random_state: Optional[int] = None,
 ) -> Annotated[list[CustomDocument], KnowledgeBase]:
     """
     Get the documents to create the knowledge base.
@@ -223,3 +225,15 @@ def create_vector_store(
         embedding_model=embedding_model,
     )
     return vector_store
+
+
+create_vector_store_lp = fk.LaunchPlan.get_or_create(
+    name="create_vector_store_lp",
+    workflow=create_vector_store,
+    default_inputs={
+        "limit": 10,
+    },
+    schedule=fk.FixedRate(
+        duration=timedelta(minutes=3)
+    )
+)

@@ -21,5 +21,4 @@ pyarrow
 requests
 rouge-score
 seaborn
-sentence_transformers
 tiktoken==0.7.0

@@ -14,8 +14,11 @@ Welcome to the LLMOps for Production RAG workshop! In this workshop, we will cov
 2. Bootstrapping an evaluation dataset
 3. RAG Hyperparameter Optimization
 
+## 📦 Install Dependencies
 
 ```{python}
+%pip install gradio
+
 try:
     import google.colab
     IN_COLAB = True
@@ -26,9 +29,17 @@ if IN_COLAB:
     !git clone https://github.com/unionai-oss/llmops-production-rag.git
     %cd llmops-production-rag
     %pip install -r requirements.lock.txt
-    %pip install gradio
 ```
 
+While dependencies are being installed, create an account on Union Serverless:
+
+👉 https://signup.union.ai/
+
+Go to the Union Serverless dashboard to make sure you can check out the UI:
+
+👉 https://serverless.union.ai/
+
+Then, login to Union on this notebook session:
 
 ```{python}
 %cd /content/llmops-production-rag
@@ -64,6 +75,8 @@ Create the vector store:
 !union run --remote llmops_rag/vector_store.py create_vector_store --limit 10
 ```
 
+⚠️ Note: The above command will take a few minutes to complete since we're building our container for the first time.
+
 Then run the simple rag pipeline
 
 ```{python}
@@ -74,6 +87,21 @@ You can also run the pipeline with an Ollama server:
 
 ```{python}
 !union run --remote llmops_rag/rag_basic.py rag_basic_ollama --questions '["How do I read and write a pandas dataframe to csv format?"]'
+```
+
+### ✨ Maintaining a Fresh Vector Store
+
+Let's use launch plan schedules to maintain a fresh vector store.
+
+```{python}
+!union register llmops_rag/vector_store.py
+!union launchplan create_vector_store_lp --activate
+```
+
+Go to the Serverless dashboard to see the schedule in action. Then you can deactivate it with:
+
+```{python}
+!union launchplan create_vector_store_lp --deactivate
 ```
 
 ### 💻 Run RAG pipeline with Gradio App
@@ -99,6 +127,7 @@ with gr.Blocks() as demo:
 demo.launch(debug=True)
 ```
 
+
 ## 🥾 Bootstrapping an Evaluation Dataset
 
 Then generate a question and answer dataset. This will use the raw knowledge base we created
@@ -117,19 +146,19 @@ Filter the dataset with an LLM critic:
 
 ## 📊 RAG Hyperparameter Optimization
 
-Experiment with different chunksizes:
-
-```{python}
-!union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/chunksize_experiment.yaml
-```
-
 Experiment with different embedding models:
 
 ```{python}
 !union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/embedding_model_experiment.yaml
 ```
 
-## 🧪 More experiments to run
+### 🧪 More experiments to run
+
+Experiment with different chunksizes:
+
+```{python}
+!union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/chunksize_experiment.yaml
+```
 
 Experiment with different splitters:
 
@@ -147,4 +176,23 @@ Experiment with document retrieval:
 
 ```{python}
 !union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/search_params_experiment.yaml
+```
+
+## 🔄 Putting it all together into a reactive pipeline
+
+Register and activate the reactive pipeline:
+
+```{python}
+!union register llmops_rag/reactive_pipeline.py
+!union launchplan knowledge_base_lp --activate
+!union launchplan create_eval_dataset_lp --activate
+!union launchplan optimize_rag_lp --activate
+```
+
+Deactivate the reactive pipeline:
+
+```{python}
+!union launchplan knowledge_base_lp --deactivate
+!union launchplan create_eval_dataset_lp --deactivate
+!union launchplan optimize_rag_lp --deactivate
 ```

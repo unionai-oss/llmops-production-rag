@@ -107,10 +107,7 @@ durationpy==0.9
 faiss-cpu==1.9.0
     # via -r requirements.txt
 filelock==3.16.1
-    # via
-    #   huggingface-hub
-    #   torch
-    #   transformers
+    # via huggingface-hub
 flashrank==0.2.9
     # via -r requirements.txt
 flatbuffers==24.3.25
@@ -142,7 +139,6 @@ fsspec==2024.10.0
     #   gcsfs
     #   huggingface-hub
     #   s3fs
-    #   torch
     #   union
 gcsfs==2024.10.0
     # via flytekit
@@ -202,10 +198,7 @@ httpx==0.27.2
     #   langsmith
     #   openai
 huggingface-hub==0.26.2
-    # via
-    #   sentence-transformers
-    #   tokenizers
-    #   transformers
+    # via tokenizers
 humanfriendly==10.0
     # via coloredlogs
 idna==3.10
@@ -228,9 +221,7 @@ jaraco-context==6.0.1
 jaraco-functools==4.1.0
     # via keyring
 jinja2==3.1.4
-    # via
-    #   torch
-    #   union
+    # via union
 jiter==0.6.1
     # via openai
 jmespath==1.0.1
@@ -239,7 +230,6 @@ joblib==1.4.2
     # via
     #   flytekit
     #   nltk
-    #   scikit-learn
 jsonlines==4.0.0
     # via flytekit
 jsonpatch==1.33
@@ -275,7 +265,7 @@ langchain-text-splitters==0.3.0
     # via
     #   -r requirements.txt
     #   langchain
-langsmith==0.1.137
+langsmith==0.1.138
     # via
     #   langchain
     #   langchain-community
@@ -327,8 +317,6 @@ multidict==6.1.0
     #   yarl
 mypy-extensions==1.0.0
     # via typing-inspect
-networkx==3.4.2
-    # via torch
 nltk==3.9.1
     # via
     #   -r requirements.txt
@@ -344,17 +332,14 @@ numpy==1.26.4
     #   onnxruntime
     #   pandas
     #   rouge-score
-    #   scikit-learn
-    #   scipy
     #   seaborn
-    #   transformers
 oauthlib==3.2.2
     # via
     #   kubernetes
     #   requests-oauthlib
 onnxruntime==1.19.2
     # via flashrank
-openai==1.52.2
+openai==1.53.0
     # via
     #   -r requirements.txt
     #   flytekitplugins-inference
@@ -369,15 +354,12 @@ packaging==24.1
     #   marshmallow
     #   matplotlib
     #   onnxruntime
-    #   transformers
 pandas==2.2.3
     # via
     #   -r requirements.txt
     #   seaborn
 pillow==11.0.0
-    # via
-    #   matplotlib
-    #   sentence-transformers
+    # via matplotlib
 playwright==1.48.0
     # via -r requirements.txt
 portalocker==2.10.1
@@ -454,13 +436,11 @@ pyyaml==6.0.2
     #   langchain
     #   langchain-community
     #   langchain-core
-    #   transformers
     #   union
 regex==2024.9.11
     # via
     #   nltk
     #   tiktoken
-    #   transformers
 requests==2.32.3
     # via
     #   -r requirements.txt
@@ -481,7 +461,6 @@ requests==2.32.3
     #   requests-oauthlib
     #   requests-toolbelt
     #   tiktoken
-    #   transformers
 requests-oauthlib==2.0.0
     # via
     #   google-auth-oauthlib
@@ -503,17 +482,7 @@ rsa==4.9
     # via google-auth
 s3fs==2024.10.0
     # via flytekit
-safetensors==0.4.5
-    # via transformers
-scikit-learn==1.5.2
-    # via sentence-transformers
-scipy==1.14.1
-    # via
-    #   scikit-learn
-    #   sentence-transformers
 seaborn==0.13.2
-    # via -r requirements.txt
-sentence-transformers==3.2.1
     # via -r requirements.txt
 sentry-sdk==2.17.0
     # via union
@@ -539,37 +508,25 @@ sqlalchemy==2.0.36
     #   langchain-community
 statsd==4.0.1
     # via flytekit
-sympy==1.13.1
-    # via
-    #   onnxruntime
-    #   torch
+sympy==1.13.3
+    # via onnxruntime
 tenacity==9.0.0
     # via
     #   langchain
     #   langchain-community
     #   langchain-core
-threadpoolctl==3.5.0
-    # via scikit-learn
 tiktoken==0.7.0
     # via
     #   -r requirements.txt
     #   langchain-openai
 tokenizers==0.20.1
-    # via
-    #   flashrank
-    #   transformers
-torch==2.5.1
-    # via sentence-transformers
+    # via flashrank
 tqdm==4.66.6
     # via
     #   flashrank
     #   huggingface-hub
     #   nltk
     #   openai
-    #   sentence-transformers
-    #   transformers
-transformers==4.46.1
-    # via sentence-transformers
 typing-extensions==4.12.2
     # via
     #   azure-core
@@ -585,7 +542,6 @@ typing-extensions==4.12.2
     #   pyee
     #   rich-click
     #   sqlalchemy
-    #   torch
     #   typing-inspect
     #   union
 typing-inspect==0.9.0

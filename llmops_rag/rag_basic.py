@@ -26,7 +26,7 @@ ollama_instance = fk_inference.Ollama(
 
 
 actor = ActorEnvironment(
-    name="retriever",
+    name="rag-actor",
     ttl_seconds=180,
     container_image=image,
     replica_count=8,
@@ -36,7 +36,7 @@ actor = ActorEnvironment(
 
 
 ollama_actor = ActorEnvironment(
-    name="generator",
+    name="ollama-actor",
     ttl_seconds=180,
     container_image=image,
     replica_count=1,
