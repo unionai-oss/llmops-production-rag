@@ -46,6 +46,7 @@ def retrieve(
     questions: list[str],
     vector_store: FlyteDirectory,
     embedding_model: Optional[str] = None,
+    search_type: str = "similarity",
     rerank: bool = False,
     num_retrieved_docs: int = 20,
     num_docs_final: int = 5,
@@ -65,7 +66,7 @@ def retrieve(
         allow_dangerous_deserialization=True,
     )
     retriever = vector_store.as_retriever(
-        search_type="similarity",
+        search_type=search_type,
         search_kwargs={"k": num_retrieved_docs},
     )
     if rerank:
@@ -116,10 +117,21 @@ def rag_basic(
     questions: list[str],
     vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default
     embedding_model: Optional[str] = None,
+    search_type: str = "similarity",
     rerank: bool = False,
+    num_retrieved_docs: int = 20,
+    num_docs_final: int = 5,
     prompt_template: Optional[str] = None,
 ) -> list[str]:
-    contexts = retrieve(questions, vector_store, embedding_model, rerank)
+    contexts = retrieve(
+        questions=questions,
+        vector_store=vector_store,
+        embedding_model=embedding_model,
+        search_type=search_type,
+        rerank=rerank,
+        num_retrieved_docs=num_retrieved_docs,
+        num_docs_final=num_docs_final,
+    )
     return generate(
         questions=questions,
         contexts=contexts,

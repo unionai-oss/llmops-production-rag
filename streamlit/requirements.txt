@@ -1,3 +1,0 @@
-unionai
-redis
-slack-sdk

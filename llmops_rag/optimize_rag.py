@@ -1,7 +1,6 @@
 """Evaluate a RAG workflow."""
 
 from dataclasses import dataclass, asdict
-from functools import partial
 from typing import Annotated, Optional
 
 import pandas as pd
@@ -85,7 +84,10 @@ def generate_answers(
     prompt_template: str = "",
     limit: Optional[int | float] = None,
     embedding_model: Optional[str] = None,
+    search_type: str = "similarity",
     rerank: bool = False,
+    num_retrieved_docs: int = 20,
+    num_docs_final: int = 5,
     exclude_patterns: Optional[list[str]] = None,
 ) -> list[Answer]:
     vector_store = create_vector_store(
@@ -101,7 +103,10 @@ def generate_answers(
         vector_store=vector_store,
         embedding_model=embedding_model,
         prompt_template=prompt_template,
+        search_type=search_type,
         rerank=rerank,
+        num_retrieved_docs=num_retrieved_docs,
+        num_docs_final=num_docs_final,
     )
     return prepare_answers(answers, questions)
 
@@ -287,7 +292,7 @@ def optimize_rag(
     root_url_tags_mapping: Optional[dict] = None,
     eval_dataset: Annotated[pd.DataFrame, EvalDatasetArtifact] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
     eval_prompt_template: Optional[str] = None,
-    n_answers: int = 1,
+    n_answers: int = 3,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     questions = prepare_questions(eval_dataset, n_answers)
     answers = gridsearch(questions, hpo_configs, root_url_tags_mapping)
