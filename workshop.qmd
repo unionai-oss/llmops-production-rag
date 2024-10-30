@@ -40,17 +40,17 @@ First go to https://platform.openai.com/account/api-keys and create an OpenAI AP
 
 Then, run the following command to make the secret accessible on Union:
 
-```bash
+```
 !union create secret openai_api_key
 ```
 
-```bash
+```
 !union get secret
 ```
 
 If you have issues with the secret, you can delete it by uncommenting the code cell below:
 
-```bash
+```
 #!union delete secret openai_api_key
 ```
 
@@ -59,19 +59,19 @@ If you have issues with the secret, you can delete it by uncommenting the code c
 
 Create the vector store:
 
-```bash
+```
 !union run --remote llmops_rag/vector_store.py create_vector_store --limit 10
 ```
 
 Then run the simple rag pipeline
 
-```bash
+```
 !union run --remote llmops_rag/rag_basic.py rag_basic --questions '["How do I read and write a pandas dataframe to csv format?"]'
 ```
 
 You can also run the pipeline with an Ollama server:
 
-```bash
+```
 !union run --remote llmops_rag/rag_basic.py rag_basic_ollama --questions '["How do I read and write a pandas dataframe to csv format?"]'
 ```
 
@@ -103,13 +103,13 @@ demo.launch(debug=True)
 Then generate a question and answer dataset. This will use the raw knowledge base we created
 in the previous step.
 
-```bash
+```
 !union run --remote llmops_rag/create_qa_dataset.py create_qa_dataset --n_questions_per_doc 5 --n_answers_per_question 5
 ```
 
 Filter the dataset with an LLM critic:
 
-```bash
+```
 !union run --remote llmops_rag/create_llm_filtered_dataset.py create_llm_filtered_dataset
 ```
 
@@ -118,13 +118,13 @@ Filter the dataset with an LLM critic:
 
 Experiment with different chunksizes:
 
-```bash
+```
 !union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/chunksize_experiment.yaml
 ```
 
 Experiment with different embedding models:
 
-```bash
+```
 !union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/embedding_model_experiment.yaml
 ```
 
@@ -132,18 +132,18 @@ Experiment with different embedding models:
 
 Experiment with different splitters:
 
-```bash
+```
 !union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/splitter_experiment.yaml
 ```
 
 Experiment with reranking:
 
-```bash
+```
 !union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/reranking_experiment.yaml
 ```
 
 Experiment with document retrieval:
 
-```bash
+```
 !union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/search_params_experiment.yaml
 ```
