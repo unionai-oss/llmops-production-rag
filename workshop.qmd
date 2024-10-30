@@ -75,6 +75,29 @@ You can also run the pipeline with an Ollama server:
 !union run --remote llmops_rag/rag_basic.py rag_basic_ollama --questions '["How do I read and write a pandas dataframe to csv format?"]'
 ```
 
+### 💻 Run RAG pipeline with Gradio App
+
+```{python}
+import gradio as gr
+from app import bot, add_message
+with gr.Blocks() as demo:
+    chatbot = gr.Chatbot(elem_id="chatbot", bubble_full_width=False, type="messages")
+
+    chat_input = gr.Textbox(
+        interactive=True,
+        placeholder="How do I write a dataframe to csv?",
+        show_label=False,
+    )
+    chat_msg = chat_input.submit(
+        add_message, [chatbot, chat_input], [chatbot, chat_input]
+    )
+    bot_msg = chat_msg.then(bot, chatbot, chatbot, api_name="bot_response")
+    bot_msg.then(lambda: gr.Textbox(interactive=True), None, [chat_input])
+
+
+demo.launch(debug=True)
+```
+
 ## 🥾 Bootstrapping an Evaluation Dataset
 
 Then generate a question and answer dataset. This will use the raw knowledge base we created
@@ -105,7 +128,7 @@ Experiment with different embedding models:
 !union run --remote llmops_rag/optimize_rag.py optimize_rag --gridsearch_config config/embedding_model_experiment.yaml
 ```
 
-## More experiments to run
+## 🧪 More experiments to run
 
 Experiment with different splitters:
 
