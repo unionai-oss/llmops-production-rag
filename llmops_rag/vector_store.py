@@ -32,7 +32,6 @@ def create_knowledge_base(
     root_url_tags_mapping: Optional[dict] = None,
     limit: Optional[int | float] = None,
     exclude_patterns: Optional[list[str]] = None,
-    _random_state: Optional[int] = None,
 ) -> Annotated[list[CustomDocument], KnowledgeBase]:
     """
     Get the documents to create the knowledge base.
