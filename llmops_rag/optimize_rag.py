@@ -1,5 +1,6 @@
 """Evaluate a RAG workflow."""
 
+import itertools
 from dataclasses import dataclass, asdict
 from typing import Annotated, Optional
 
@@ -24,6 +25,21 @@ class HPOConfig(RAGConfig):
 
 
 @dataclass
+class GridSearchConfig:
+    splitter: Optional[list[str]] = None
+    exclude_patterns: Optional[list[str]] = None
+    prompt_template: Optional[list[str]] = None
+    chunk_size: Optional[list[int]] = None
+    limit: Optional[list[int]] = None
+    embedding_model: Optional[list[str]] = None
+    generation_model: Optional[list[str]] = None
+    search_type: Optional[list[str]] = None
+    rerank: Optional[list[bool]] = None
+    num_retrieved_docs: Optional[list[int]] = None
+    num_docs_final: Optional[list[int]] = None
+
+
+@dataclass
 class Question:
     question_id: int
     question: str
@@ -42,6 +58,33 @@ class RAGInput:
 class Answer:
     answer: str
     question_id: int
+
+
+@fk.task(
+    container_image=image,
+    cache=True,
+    cache_version="1",
+)
+def prepare_hpo_configs(gridsearch_config: GridSearchConfig) -> list[HPOConfig]:
+    gridsearch_config = asdict(gridsearch_config)
+    gridsearch_config = {k: v for k, v in gridsearch_config.items() if v is not None}
+    keys = gridsearch_config.keys()
+
+    hpo_configs = []
+    for values in itertools.product(*gridsearch_config.values()):
+        name = []
+        config = {}
+        for key, value in zip(keys, values):
+            config[key] = value
+            _key = "_".join(x[:3] for x in key.split("_"))
+            if len(str(value)) > 10:
+                value = str(value)[:10]
+                value = value.replace(" ", "-")
+            name.append(f"{_key}={value}")
+        name = ":".join(name)
+        hpo_configs.append(HPOConfig(condition_name=name, **config))
+
+    return hpo_configs
 
 
 @fk.task(
@@ -79,16 +122,17 @@ def prepare_answers(answers: list[str], questions: list[Question]) -> list[Answe
 def generate_answers(
     questions: list[Question],
     root_url_tags_mapping: Optional[dict] = None,
+    exclude_patterns: Optional[list[str]] = None,
     splitter: str = "character",
     chunk_size: int = 2048,
     prompt_template: str = "",
-    limit: Optional[int | float] = None,
+    limit: Optional[int] = None,
     embedding_model: Optional[str] = None,
+    generation_model: Optional[str] = None,
     search_type: str = "similarity",
     rerank: bool = False,
     num_retrieved_docs: int = 20,
     num_docs_final: int = 5,
-    exclude_patterns: Optional[list[str]] = None,
 ) -> list[Answer]:
     vector_store = create_vector_store(
         root_url_tags_mapping=root_url_tags_mapping,
@@ -102,6 +146,7 @@ def generate_answers(
         questions=[question.question for question in questions],
         vector_store=vector_store,
         embedding_model=embedding_model,
+        generation_model=generation_model,
         prompt_template=prompt_template,
         search_type=search_type,
         rerank=rerank,
@@ -116,18 +161,21 @@ def gridsearch(
     questions: list[Question],
     hpo_configs: list[HPOConfig],
     root_url_tags_mapping: Optional[dict] = None,
+    exclude_patterns: Optional[list[str]] = None,
+    limit: Optional[int] = None,
 ) -> list[list[Answer]]:
     answers = []
     for config in hpo_configs:
         _answers = generate_answers(
             questions=questions,
             root_url_tags_mapping=root_url_tags_mapping,
+            exclude_patterns=exclude_patterns,
             splitter=config.splitter,
             chunk_size=config.chunk_size,
-            exclude_patterns=config.exclude_patterns,
             prompt_template=config.prompt_template,
-            limit=config.limit,
+            limit=limit,
             embedding_model=config.embedding_model,
+            generation_model=config.generation_model,
             rerank=config.rerank,
         )
         answers.append(_answers)
@@ -241,7 +289,6 @@ def llm_judge_eval(
 
 @fk.task(
     container_image=image,
-    enable_deck=True,
     secret_requests=[fk.Secret(key="openai_api_key")],
     requests=fk.Resources(cpu="4", mem="8Gi"),
     cache=True,
@@ -250,22 +297,36 @@ def llm_judge_eval(
 @openai_env_secret
 def evaluate(
     answers_dataset: pd.DataFrame,
+    metric: Optional[str] = None,
     eval_prompt_template: Optional[str] = None,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    import seaborn as sns
+) -> tuple[RAGConfig, pd.DataFrame, pd.DataFrame]:
 
     evaluation = traditional_nlp_eval(answers_dataset)
     evaluation = llm_judge_eval(evaluation, eval_prompt_template)
 
+    metric = metric or "llm_correctness_score"
     evaluation_summary = (
         evaluation
-        .astype({"exclude_patterns": str})
         .groupby([*HPOConfig.__dataclass_fields__])[
             ["bleu_score", "rouge1_f1", "llm_correctness_score"]
         ]
         .mean()
         .reset_index()
     )
+
+    sorted_df = evaluation_summary.sort_values(by=metric, ascending=False)
+    best_config = sorted_df[[*RAGConfig.__dataclass_fields__]].iloc[0].to_dict()
+    return RAGConfig(**best_config), evaluation, evaluation_summary
+
+
+@fk.task(
+    container_image=image,
+    enable_deck=True,
+    deck_fields=[],
+    requests=fk.Resources(cpu="4", mem="8Gi"),
+)
+def report(evaluation: pd.DataFrame, evaluation_summary: pd.DataFrame):
+    import seaborn as sns
 
     analysis_df = evaluation_summary.melt(
         id_vars=["condition_name"],
@@ -283,21 +344,23 @@ def evaluate(
     decks.insert(0, fk.Deck("Evaluation Summary", TopFrameRenderer(10).to_html(evaluation_summary)))
     decks.insert(0, fk.Deck("Benchmarking Results", convert_fig_into_html(g.figure)))
 
-    return evaluation, evaluation_summary
-
 
 @fk.workflow
 def optimize_rag(
-    hpo_configs: list[HPOConfig],
+    gridsearch_config: GridSearchConfig,
     root_url_tags_mapping: Optional[dict] = None,
+    exclude_patterns: Optional[list[str]] = None,
+    limit: Optional[int] = 10,
     eval_dataset: Annotated[pd.DataFrame, EvalDatasetArtifact] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
     eval_prompt_template: Optional[str] = None,
-    n_answers: int = 3,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+    n_answers: int = 5,
+) -> RAGConfig:
+    hpo_configs = prepare_hpo_configs(gridsearch_config)
     questions = prepare_questions(eval_dataset, n_answers)
-    answers = gridsearch(questions, hpo_configs, root_url_tags_mapping)
+    answers = gridsearch(questions, hpo_configs, root_url_tags_mapping, exclude_patterns, limit)
     answers_dataset = combine_answers(answers, hpo_configs, questions)
-    evaluation, evalution_summary = evaluate(
+    best_config, evaluation, evalution_summary = evaluate(
         answers_dataset, eval_prompt_template
     )
-    return evaluation, evalution_summary
+    report(evaluation, evalution_summary)
+    return best_config

@@ -12,52 +12,41 @@ from union.actor import ActorEnvironment
 
 from llmops_rag.image import image
 from llmops_rag.utils import openai_env_secret
+from llmops_rag.config import DEFAULT_PROMPT_TEMPLATE
 
 
 VectorStore = fk.Artifact(name="vector-store")
 
-DEFAULT_PROMPT_TEMPLATE = """
-You are an assistant for question-answering tasks in the pandas python data analysis library.
-Use only the following pieces of retrieved context to answer the question. 
-If you don't know the answer, just say that you don't know. Make the answer as
-detailed as possible.
 
-## Question:
-{question}
-
-## Context:
-{context}
-
-## Answer:
-"""
-
-MODEL_NAME = "llama3.1"
+OLLAMA_MODEL_NAME = "llama3.1"
 ollama_instance = fk_inference.Ollama(
-    model=fk_inference.Model(MODEL_NAME),
+    model=fk_inference.Model(OLLAMA_MODEL_NAME),
     gpu="1",
 )
 
 
-retriever_actor = ActorEnvironment(
+actor = ActorEnvironment(
     name="retriever",
-    ttl_seconds=600,
+    ttl_seconds=300,
     container_image=image,
+    replica_count=8,
     requests=fk.Resources(cpu="2", mem="8Gi"),
     secret_requests=[fk.Secret(key="openai_api_key")],
 )
 
 
-generator_actor = ActorEnvironment(
+ollama_actor = ActorEnvironment(
     name="generator",
-    ttl_seconds=600,
+    ttl_seconds=300,
     container_image=image,
+    replica_count=1,
     requests=fk.Resources(gpu="0", mem="8Gi"),
     accelerator=L4,
     pod_template=ollama_instance.pod_template,
 )
 
 
-@retriever_actor.task(enable_deck=True, deck_fields=[])
+@actor.task(enable_deck=True, deck_fields=[])
 @openai_env_secret
 def retrieve(
     questions: list[str],
@@ -106,23 +95,21 @@ def retrieve(
     return contexts
 
 
-@generator_actor.task(enable_deck=True, deck_fields=[])
+@actor.task(enable_deck=True, deck_fields=[])
+@openai_env_secret
 def generate(
     questions: list[str],
     contexts: list[str],
+    generation_model: Optional[str] = None,
     prompt_template: Optional[str] = None,
 ) -> list[str]:
     from langchain_core.output_parsers import StrOutputParser
     from langchain_core.prompts import PromptTemplate
     from langchain_openai import ChatOpenAI
 
+    model_name = generation_model or "gpt-4o"
     prompt = PromptTemplate.from_template(prompt_template or DEFAULT_PROMPT_TEMPLATE)
-    llm = ChatOpenAI(
-        model_name=MODEL_NAME,
-        base_url=f"{ollama_instance.base_url}/v1",
-        api_key="ollama",
-        temperature=0.9
-    )
+    llm = ChatOpenAI(model_name=model_name, temperature=0.9)
 
     chain = prompt | llm | StrOutputParser()
     answers = []
@@ -139,6 +126,7 @@ def rag_basic(
     questions: list[str],
     vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default
     embedding_model: str = "text-embedding-ada-002",
+    generation_model: str = "gpt-4o-mini",
     search_type: str = "similarity",
     rerank: bool = False,
     num_retrieved_docs: int = 20,
@@ -157,5 +145,66 @@ def rag_basic(
     return generate(
         questions=questions,
         contexts=contexts,
+        generation_model=generation_model,
+        prompt_template=prompt_template,
+    )
+
+
+@ollama_actor.task(enable_deck=True, deck_fields=[])
+def generate_ollama(
+    questions: list[str],
+    contexts: list[str],
+    generation_model: Optional[str] = None,
+    prompt_template: Optional[str] = None,
+) -> list[str]:
+    from langchain_core.output_parsers import StrOutputParser
+    from langchain_core.prompts import PromptTemplate
+    from langchain_openai import ChatOpenAI
+
+    prompt = PromptTemplate.from_template(prompt_template or DEFAULT_PROMPT_TEMPLATE)
+    assert generation_model in [OLLAMA_MODEL_NAME]
+
+    llm = ChatOpenAI(
+        model_name=generation_model,
+        base_url=f"{ollama_instance.base_url}/v1",
+        api_key="ollama",
+        temperature=0.9
+    )
+
+    chain = prompt | llm | StrOutputParser()
+    answers = []
+    for question, context in zip(questions, contexts):
+        answer = chain.invoke({"question": question, "context": context})
+        answers.append(answer)
+
+    fk.Deck("Answer", MarkdownRenderer().to_html(answers[0]))
+    return answers
+
+
+@fk.workflow
+def rag_basic_ollama(
+    questions: list[str],
+    vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default
+    embedding_model: str = "text-embedding-ada-002",
+    generation_model: str = "llama3.1",
+    search_type: str = "similarity",
+    rerank: bool = False,
+    num_retrieved_docs: int = 20,
+    num_docs_final: int = 5,
+    prompt_template: Optional[str] = None,
+) -> list[str]:
+    contexts = retrieve(
+        questions=questions,
+        vector_store=vector_store,
+        embedding_model=embedding_model,
+        search_type=search_type,
+        rerank=rerank,
+        num_retrieved_docs=num_retrieved_docs,
+        num_docs_final=num_docs_final,
+    )
+    return generate_ollama(
+        questions=questions,
+        contexts=contexts,
+        generation_model=generation_model,
         prompt_template=prompt_template,
     )

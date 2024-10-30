@@ -1,10 +1,9 @@
-- condition_name: with_reranker
-  embedding_model: text-embedding-3-small
-  rerank: true
-  chunk_size: 2048
-  limit: 100
-- condition_name: without_reranker
-  embedding_model: text-embedding-3-small
-  rerank: false
-  chunk_size: 2048
-  limit: 100
+rerank:
+  - true
+  - false
+embedding_model:
+  - text-embedding-3-large
+splitter:
+  - recursive
+chunk_size:
+  - 256

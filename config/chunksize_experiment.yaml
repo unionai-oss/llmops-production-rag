@@ -1,15 +1,5 @@
-- condition_name: chunksize-256
-  chunk_size: 256
-  limit: 100
-- condition_name: chunksize-512
-  chunk_size: 512
-  limit: 100
-- condition_name: chunksize-1024
-  chunk_size: 1024
-  limit: 100
-- condition_name: chunksize-2048
-  chunk_size: 2048
-  limit: 100
-- condition_name: chunksize-4096
-  chunk_size: 4096
-  limit: 100
+chunk_size:
+  - 256
+  - 512
+  - 768
+  - 1024

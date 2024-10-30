@@ -1,24 +1,14 @@
-- condition_name: similarity-get20-top3
-  search_type: similarity
-  num_retrieved_docs: 20
-  num_docs_final: 3
-- condition_name: similarity-get20-top5
-  search_type: similarity
-  num_retrieved_docs: 20
-  num_docs_final: 5
-- condition_name: similarity-get20-top10
-  search_type: similarity
-  num_retrieved_docs: 20
-  num_docs_final: 10
-- condition_name: mmr-get20-top3
-  search_type: mmr
-  num_retrieved_docs: 20
-  num_docs_final: 3
-- condition_name: mmr-get20-top5
-  search_type: mmr
-  num_retrieved_docs: 20
-  num_docs_final: 5
-- condition_name: mmr-get20-top10
-  search_type: mmr
-  num_retrieved_docs: 20
-  num_docs_final: 10
+num_retrieved_docs:
+  - 20
+num_docs_final:
+  - 3
+  - 5
+  - 10
+rerank:
+  - false
+embedding_model:
+  - text-embedding-3-large
+splitter:
+  - recursive
+chunk_size:
+  - 256
