@@ -132,7 +132,7 @@ This artifact is a vector store of {len(document_chunks)} document chunks using 
     enable_deck=True,
 )
 @openai_env_secret
-def create_vector_store(
+def chunk_and_embed_documents(
     documents: list[CustomDocument],
     splitter: str,
     chunk_size: int,
@@ -200,7 +200,7 @@ def create_vector_store(
 
 
 @fk.workflow
-def create(
+def create_vector_store(
     root_url_tags_mapping: Optional[dict] = None,
     splitter: str = "character",
     chunk_size: int = 2048,
@@ -216,7 +216,7 @@ def create(
         limit=limit,
         exclude_patterns=exclude_patterns,
     )
-    vector_store = create_vector_store(
+    vector_store = chunk_and_embed_documents(
         documents=docs,
         splitter=splitter,
         chunk_size=chunk_size,

@@ -10,7 +10,7 @@ from flytekit.types.directory import FlyteDirectory
 
 from llmops_rag.config import RAGConfig
 from llmops_rag.image import image
-from llmops_rag.vector_store import create as create_vector_store
+from llmops_rag.vector_store import create_vector_store
 from llmops_rag.rag_basic import rag_basic
 from llmops_rag.utils import openai_env_secret, convert_fig_into_html
 

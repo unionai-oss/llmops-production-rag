@@ -56,7 +56,7 @@ If you have issues with the secret, you can delete it by uncommenting the code c
 Create the vector store:
 
 ```bash
-!union run --remote llmops_rag/vector_store.py create --limit 10
+!union run --remote llmops_rag/vector_store.py create_vector_store --limit 10
 ```
 
 Then run the simple rag pipeline
