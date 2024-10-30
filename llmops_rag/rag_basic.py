@@ -29,7 +29,7 @@ actor = ActorEnvironment(
     name="retriever",
     ttl_seconds=180,
     container_image=image,
-    replica_count=1,
+    replica_count=8,
     requests=fk.Resources(cpu="2", mem="8Gi"),
     secret_requests=[fk.Secret(key="openai_api_key")],
 )
