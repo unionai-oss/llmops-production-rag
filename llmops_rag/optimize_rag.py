@@ -10,15 +10,13 @@ from flytekit.deck import TopFrameRenderer
 from flytekit.types.directory import FlyteDirectory
 
 from llmops_rag.config import RAGConfig
-from llmops_rag.image import image as rag_image
+from llmops_rag.image import image
 from llmops_rag.vector_store import create as create_vector_store
 from llmops_rag.rag_basic import rag_basic
 from llmops_rag.utils import openai_env_secret, convert_fig_into_html
 
 
 EvalDatasetArtifact = fk.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
-
-image = rag_image.with_packages(["nltk", "rouge-score", "seaborn"])
 
 
 @dataclass
@@ -78,7 +76,7 @@ def prepare_answers(answers: list[str], questions: list[Question]) -> list[Answe
     ]
 
 
-@fk.dynamic(container_image=image, cache=True, cache_version="4")
+@fk.dynamic(container_image=image, cache=True, cache_version="5")
 def generate_answers(
     questions: list[Question],
     root_url_tags_mapping: Optional[dict] = None,
@@ -86,7 +84,8 @@ def generate_answers(
     chunk_size: int = 2048,
     prompt_template: str = "",
     limit: Optional[int | float] = None,
-    embedding_type: Optional[str] = "openai",
+    embedding_model: Optional[str] = None,
+    rerank: bool = False,
     exclude_patterns: Optional[list[str]] = None,
 ) -> list[Answer]:
     vector_store = create_vector_store(
@@ -94,18 +93,20 @@ def generate_answers(
         splitter=splitter,
         chunk_size=chunk_size,
         limit=limit,
-        embedding_type=embedding_type,
+        embedding_model=embedding_model,
         exclude_patterns=exclude_patterns,
     )
     answers = rag_basic(
         questions=[question.question for question in questions],
         vector_store=vector_store,
+        embedding_model=embedding_model,
         prompt_template=prompt_template,
+        rerank=rerank,
     )
     return prepare_answers(answers, questions)
 
 
-@fk.dynamic(container_image=image, cache=True, cache_version="4")
+@fk.dynamic(container_image=image, cache=True, cache_version="5")
 def gridsearch(
     questions: list[Question],
     hpo_configs: list[HPOConfig],
@@ -121,7 +122,8 @@ def gridsearch(
             exclude_patterns=config.exclude_patterns,
             prompt_template=config.prompt_template,
             limit=config.limit,
-            embedding_type=config.embedding_type,
+            embedding_model=config.embedding_model,
+            rerank=config.rerank,
         )
         answers.append(_answers)
     return answers
@@ -238,7 +240,7 @@ def llm_judge_eval(
     secret_requests=[fk.Secret(key="openai_api_key")],
     requests=fk.Resources(cpu="4", mem="8Gi"),
     cache=True,
-    cache_version="6",
+    cache_version="7",
 )
 @openai_env_secret
 def evaluate(
@@ -267,7 +269,7 @@ def evaluate(
         value_name="score",
     )
 
-    g = sns.FacetGrid(analysis_df, col="metric", sharey=False)
+    g = sns.FacetGrid(analysis_df, col="metric", sharex=False)
     g.map_dataframe(sns.barplot, y="condition_name", x="score", orient="h")
     g.add_legend()
 

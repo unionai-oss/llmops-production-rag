@@ -57,6 +57,7 @@ certifi==2024.8.30
     # via
     #   httpcore
     #   httpx
+    #   kubernetes
     #   requests
     #   sentry-sdk
 cffi==1.17.1
@@ -73,9 +74,11 @@ click==8.1.7
     #   union
 cloudpickle==3.1.0
     # via flytekit
+coloredlogs==15.0.1
+    # via onnxruntime
 contourpy==1.3.0
     # via matplotlib
-croniter==3.0.3
+croniter==5.0.1
     # via flytekit
 cryptography==43.0.3
     # via
@@ -99,6 +102,8 @@ docker==7.1.0
     # via flytekit
 docstring-parser==0.16
     # via flytekit
+durationpy==0.9
+    # via kubernetes
 faiss-cpu==1.9.0
     # via -r requirements.txt
 filelock==3.16.1
@@ -106,6 +111,10 @@ filelock==3.16.1
     #   huggingface-hub
     #   torch
     #   transformers
+flashrank==0.2.9
+    # via -r requirements.txt
+flatbuffers==24.3.25
+    # via onnxruntime
 flyteidl==1.13.5
     # via
     #   flytekit
@@ -114,8 +123,11 @@ flytekit==1.13.11
     # via
     #   -r requirements.txt
     #   flytekitplugins-deck-standard
+    #   flytekitplugins-inference
     #   union
 flytekitplugins-deck-standard==1.13.11
+    # via -r requirements.txt
+flytekitplugins-inference==1.13.11
     # via -r requirements.txt
 fonttools==4.54.1
     # via matplotlib
@@ -138,7 +150,7 @@ gitdb==4.0.11
     # via gitpython
 gitpython==3.1.43
     # via -r requirements.txt
-google-api-core==2.21.0
+google-api-core==2.22.0
     # via
     #   google-cloud-core
     #   google-cloud-storage
@@ -149,6 +161,7 @@ google-auth==2.35.0
     #   google-auth-oauthlib
     #   google-cloud-core
     #   google-cloud-storage
+    #   kubernetes
 google-auth-oauthlib==1.2.1
     # via gcsfs
 google-cloud-core==2.4.1
@@ -171,12 +184,12 @@ googleapis-common-protos==1.65.0
     #   union
 greenlet==3.1.1
     # via playwright
-grpcio==1.67.0
+grpcio==1.67.1
     # via
     #   flytekit
     #   grpcio-status
     #   union
-grpcio-status==1.67.0
+grpcio-status==1.67.1
     # via
     #   flytekit
     #   union
@@ -188,11 +201,13 @@ httpx==0.27.2
     # via
     #   langsmith
     #   openai
-huggingface-hub==0.26.1
+huggingface-hub==0.26.2
     # via
     #   sentence-transformers
     #   tokenizers
     #   transformers
+humanfriendly==10.0
+    # via coloredlogs
 idna==3.10
     # via
     #   anyio
@@ -233,12 +248,14 @@ jsonpickle==3.3.0
     # via flytekit
 jsonpointer==3.0.0
     # via jsonpatch
-keyring==25.4.1
+keyring==25.5.0
     # via
     #   flytekit
     #   union
 kiwisolver==1.4.7
     # via matplotlib
+kubernetes==31.0.0
+    # via flytekitplugins-inference
 langchain==0.3.4
     # via
     #   -r requirements.txt
@@ -320,21 +337,27 @@ numpy==1.26.4
     # via
     #   contourpy
     #   faiss-cpu
+    #   flashrank
     #   langchain
     #   langchain-community
     #   matplotlib
+    #   onnxruntime
     #   pandas
-    #   pyarrow
     #   rouge-score
     #   scikit-learn
     #   scipy
     #   seaborn
     #   transformers
 oauthlib==3.2.2
-    # via requests-oauthlib
+    # via
+    #   kubernetes
+    #   requests-oauthlib
+onnxruntime==1.19.2
+    # via flashrank
 openai==1.52.2
     # via
     #   -r requirements.txt
+    #   flytekitplugins-inference
     #   langchain-openai
 orjson==3.10.10
     # via langsmith
@@ -345,6 +368,7 @@ packaging==24.1
     #   langchain-core
     #   marshmallow
     #   matplotlib
+    #   onnxruntime
     #   transformers
 pandas==2.2.3
     # via
@@ -369,11 +393,12 @@ protobuf==5.28.3
     #   google-api-core
     #   googleapis-common-protos
     #   grpcio-status
+    #   onnxruntime
     #   proto-plus
     #   protoc-gen-openapiv2
 protoc-gen-openapiv2==0.0.1
     # via flyteidl
-pyarrow==17.0.0
+pyarrow==18.0.0
     # via -r requirements.txt
 pyasn1==0.6.1
     # via
@@ -408,6 +433,7 @@ python-dateutil==2.9.0.post0
     # via
     #   botocore
     #   croniter
+    #   kubernetes
     #   matplotlib
     #   pandas
 python-dotenv==1.0.1
@@ -424,6 +450,7 @@ pyyaml==6.0.2
     # via
     #   flytekit
     #   huggingface-hub
+    #   kubernetes
     #   langchain
     #   langchain-community
     #   langchain-core
@@ -440,11 +467,13 @@ requests==2.32.3
     #   azure-core
     #   azure-datalake-store
     #   docker
+    #   flashrank
     #   flytekit
     #   gcsfs
     #   google-api-core
     #   google-cloud-storage
     #   huggingface-hub
+    #   kubernetes
     #   langchain
     #   langchain-community
     #   langsmith
@@ -454,7 +483,9 @@ requests==2.32.3
     #   tiktoken
     #   transformers
 requests-oauthlib==2.0.0
-    # via google-auth-oauthlib
+    # via
+    #   google-auth-oauthlib
+    #   kubernetes
 requests-toolbelt==1.0.0
     # via langsmith
 rich==13.9.3
@@ -489,6 +520,7 @@ sentry-sdk==2.17.0
 six==1.16.0
     # via
     #   azure-core
+    #   kubernetes
     #   markdownify
     #   python-dateutil
     #   rouge-score
@@ -507,8 +539,10 @@ sqlalchemy==2.0.36
     #   langchain-community
 statsd==4.0.1
     # via flytekit
-sympy==1.13.3
-    # via torch
+sympy==1.13.1
+    # via
+    #   onnxruntime
+    #   torch
 tenacity==9.0.0
     # via
     #   langchain
@@ -521,19 +555,20 @@ tiktoken==0.7.0
     #   -r requirements.txt
     #   langchain-openai
 tokenizers==0.20.1
-    # via transformers
-torch==2.4.1
     # via
-    #   -r requirements.txt
-    #   sentence-transformers
-tqdm==4.66.5
+    #   flashrank
+    #   transformers
+torch==2.5.1
+    # via sentence-transformers
+tqdm==4.66.6
     # via
+    #   flashrank
     #   huggingface-hub
     #   nltk
     #   openai
     #   sentence-transformers
     #   transformers
-transformers==4.46.0
+transformers==4.46.1
     # via sentence-transformers
 typing-extensions==4.12.2
     # via
@@ -564,11 +599,14 @@ urllib3==2.2.3
     #   botocore
     #   docker
     #   flytekit
+    #   kubernetes
     #   requests
     #   sentry-sdk
+websocket-client==1.8.0
+    # via kubernetes
 wrapt==1.16.0
     # via aiobotocore
-yarl==1.16.0
+yarl==1.17.0
     # via aiohttp
 zipp==3.20.2
     # via importlib-metadata

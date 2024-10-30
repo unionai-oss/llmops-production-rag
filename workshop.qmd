@@ -63,10 +63,6 @@ union run --remote llmops_rag/create_llm_filtered_dataset.py create_llm_filtered
 
 Evaluate a RAG experiment:
 
-```bash
-union run --remote llmops_rag/optimize_rag.py optimize_rag --hpo_configs config/prompt_experiment.yaml
-```
-
 Experiment with different chunksizes:
 
 ```bash
@@ -77,6 +73,18 @@ Experiment with different splitters:
 
 ```bash
 union run --remote llmops_rag/optimize_rag.py optimize_rag --hpo_configs config/splitter_experiment.yaml
+```
+
+Experiment with different embedding models:
+
+```bash
+union run --remote llmops_rag/optimize_rag.py optimize_rag --hpo_configs config/embedding_model_experiment.yaml
+```
+
+Experiment with reranking:
+
+```bash
+union run --remote llmops_rag/optimize_rag.py optimize_rag --hpo_configs config/reranking_experiment.yaml
 ```
 
 ## Collect User Feedback

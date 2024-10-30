@@ -100,7 +100,7 @@ def create_knowledge_base(
 
 def generate_data_md(
     document_chunks,
-    embedding_type: str,
+    embedding_model: str,
     n_chunks: int = 5,
 ) -> str:
     document_chunks_preview = document_chunks[:n_chunks]
@@ -123,7 +123,7 @@ def generate_data_md(
 
     return f"""# 📚 Vector store knowledge base.
 
-This artifact is a vector store of {len(document_chunks)} document chunks using {embedding_type} embeddings.
+This artifact is a vector store of {len(document_chunks)} document chunks using {embedding_model} embeddings.
 
 ## Preview
 
@@ -144,13 +144,14 @@ def create_vector_store(
     documents: list[CustomDocument],
     splitter: str,
     chunk_size: int,
-    embedding_type: Optional[str] = None,
+    embedding_model: Optional[str] = None,
 ) -> Annotated[FlyteDirectory, VectorStore]:
     """
     Create the search index.
     """
     from langchain_community.vectorstores import FAISS
     from langchain.docstore.document import Document
+    from langchain_openai import OpenAIEmbeddings
     from langchain.text_splitter import (
         CharacterTextSplitter,
         RecursiveCharacterTextSplitter,
@@ -159,7 +160,7 @@ def create_vector_store(
 
     splitter = splitter or "recursive"
     chunk_size = int(chunk_size or 1024)
-    embedding_type = embedding_type or "openai"
+    embedding_model = embedding_model or "text-embedding-ada-002"
 
     documents = [flyte_doc.to_document() for flyte_doc in documents]
     if splitter == "character":
@@ -185,14 +186,8 @@ def create_vector_store(
     else:
         raise ValueError(f"Invalid splitter: {splitter}")
 
-    if embedding_type == "openai":
-        from langchain_openai import OpenAIEmbeddings
 
-        embeddings = OpenAIEmbeddings()
-    elif embedding_type == "huggingface":
-        from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    embeddings = OpenAIEmbeddings(model=embedding_model)
 
     document_chunks = [
         Document(page_content=chunk, metadata=doc.metadata)
@@ -208,7 +203,7 @@ def create_vector_store(
     vector_store.save_local(path)
     return VectorStore.create_from(
         FlyteDirectory(path=path),
-        DataCard(generate_data_md(document_chunks, embedding_type)),
+        DataCard(generate_data_md(document_chunks, embedding_model)),
     )
 
 
@@ -218,7 +213,7 @@ def create(
     splitter: str = "character",
     chunk_size: int = 2048,
     limit: Optional[int | float] = None,
-    embedding_type: Optional[str] = "openai",
+    embedding_model: Optional[str] = "text-embedding-ada-002",
     exclude_patterns: Optional[list[str]] = None,
 ) -> FlyteDirectory:
     """
@@ -233,6 +228,6 @@ def create(
         documents=docs,
         splitter=splitter,
         chunk_size=chunk_size,
-        embedding_type=embedding_type,
+        embedding_model=embedding_model,
     )
     return vector_store

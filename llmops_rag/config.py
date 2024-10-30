@@ -9,4 +9,5 @@ class RAGConfig:
     prompt_template: str = ""
     chunk_size: int = 2048
     limit: Optional[int] = None
-    embedding_type: str = "openai"
+    embedding_model: str = "text-embedding-ada-002"
+    rerank: bool = False

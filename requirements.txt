@@ -1,8 +1,10 @@
 beautifulsoup4
 faiss-cpu
+flashrank
 union==0.1.87
 flytekit==1.13.11
 flytekitplugins-deck-standard
+flytekitplugins-inference
 gitpython
 langchain==0.3.4
 langchain-community==0.3.3
@@ -21,4 +23,3 @@ rouge-score
 seaborn
 sentence_transformers
 tiktoken==0.7.0
-torch==2.4.1
