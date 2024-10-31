@@ -5,7 +5,7 @@ from union.remote import UnionRemote
 
 
 remote = UnionRemote()
-workflow = remote.fetch_workflow(name="llmops_rag.rag_basic.rag_basic")
+workflow = remote.fetch_workflow(name="rag_basic")
 
 
 N_RETRIES = 200

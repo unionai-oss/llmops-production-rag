@@ -202,6 +202,7 @@ Go to the Serverless dashboard to see the schedule in action. Then you can deact
 ```{python}
 import gradio as gr
 from app import bot, add_message
+
 with gr.Blocks() as demo:
     chatbot = gr.Chatbot(elem_id="chatbot", bubble_full_width=False, type="messages")
 
@@ -228,8 +229,12 @@ in the previous step.
 
 ```{python}
 %%writefile create_qa_dataset.py
+import functools
+from typing import Annotated
+
 import flytekit as fk
-from llmops_rag.create_qa_dataset import generate_qa_datapoints, create_dataset
+from flytekit.types.file import FlyteFile
+from llmops_rag.create_qa_dataset import generate_qa_datapoints, create_dataset, QuestionAndAnswerDataset
 from llmops_rag.document import CustomDocument
 from llmops_rag.vector_store import KnowledgeBase
 
@@ -285,7 +290,7 @@ Experiment with different embedding models:
 ```{python}
 %%writefile optimize_rag.py
 import flytekit as fk
-from typing import Optional
+from typing import Optional, Annotated
 from llmops_rag.optimize_rag import (
     GridSearchConfig,
     prepare_hpo_configs,
@@ -295,6 +300,7 @@ from llmops_rag.optimize_rag import (
     evaluate,
     report,
 )
+from llmops_rag.config import RAGConfig
 from llmops_rag.create_llm_filtered_dataset import EvalDatasetArtifact
 import pandas as pd
 
@@ -318,7 +324,6 @@ def optimize_rag(
     )
     report(evaluation, evalution_summary)
     return best_config
-
 ```
 
 ```{python}
@@ -431,7 +436,6 @@ optimize_rag_lp = fk.LaunchPlan.get_or_create(
         inputs={"eval_dataset": EvalDatasetArtifact.query()},
     )
 )
-
 ```
 
 Register and activate the reactive pipeline:
