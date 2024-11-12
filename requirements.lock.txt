@@ -32,7 +32,7 @@ attrs==24.2.0
     # via
     #   aiohttp
     #   jsonlines
-azure-core==1.31.0
+azure-core==1.32.0
     # via
     #   adlfs
     #   azure-identity
@@ -116,15 +116,15 @@ flyteidl==1.13.5
     # via
     #   flytekit
     #   union
-flytekit==1.13.11
+flytekit==1.13.12
     # via
     #   -r requirements.txt
     #   flytekitplugins-deck-standard
     #   flytekitplugins-inference
     #   union
-flytekitplugins-deck-standard==1.13.11
+flytekitplugins-deck-standard==1.13.12
     # via -r requirements.txt
-flytekitplugins-inference==1.13.11
+flytekitplugins-inference==1.13.12
     # via -r requirements.txt
 fonttools==4.54.1
     # via matplotlib
@@ -222,7 +222,7 @@ jaraco-functools==4.1.0
     # via keyring
 jinja2==3.1.4
     # via union
-jiter==0.6.1
+jiter==0.7.0
     # via openai
 jmespath==1.0.1
     # via botocore
@@ -234,7 +234,7 @@ jsonlines==4.0.0
     # via flytekit
 jsonpatch==1.33
     # via langchain-core
-jsonpickle==3.3.0
+jsonpickle==3.4.1
     # via flytekit
 jsonpointer==3.0.0
     # via jsonpatch
@@ -265,7 +265,7 @@ langchain-text-splitters==0.3.0
     # via
     #   -r requirements.txt
     #   langchain
-langsmith==0.1.138
+langsmith==0.1.139
     # via
     #   langchain
     #   langchain-community
@@ -278,7 +278,7 @@ markdownify==0.13.1
     # via -r requirements.txt
 markupsafe==3.0.2
     # via jinja2
-marshmallow==3.23.0
+marshmallow==3.23.1
     # via
     #   dataclasses-json
     #   marshmallow-enum
@@ -337,14 +337,14 @@ oauthlib==3.2.2
     # via
     #   kubernetes
     #   requests-oauthlib
-onnxruntime==1.19.2
+onnxruntime==1.20.0
     # via flashrank
-openai==1.53.0
+openai==1.54.1
     # via
     #   -r requirements.txt
     #   flytekitplugins-inference
     #   langchain-openai
-orjson==3.10.10
+orjson==3.10.11
     # via langsmith
 packaging==24.1
     # via
@@ -399,7 +399,7 @@ pydantic==2.9.2
     #   pydantic-settings
 pydantic-core==2.23.4
     # via pydantic
-pydantic-settings==2.6.0
+pydantic-settings==2.6.1
     # via langchain-community
 pyee==12.0.0
     # via playwright
@@ -467,7 +467,7 @@ requests-oauthlib==2.0.0
     #   kubernetes
 requests-toolbelt==1.0.0
     # via langsmith
-rich==13.9.3
+rich==13.9.4
     # via
     #   flytekit
     #   rich-click
@@ -484,7 +484,7 @@ s3fs==2024.10.0
     # via flytekit
 seaborn==0.13.2
     # via -r requirements.txt
-sentry-sdk==2.17.0
+sentry-sdk==2.18.0
     # via union
 six==1.16.0
     # via
@@ -519,7 +519,7 @@ tiktoken==0.7.0
     # via
     #   -r requirements.txt
     #   langchain-openai
-tokenizers==0.20.1
+tokenizers==0.20.3
     # via flashrank
 tqdm==4.66.6
     # via
@@ -548,7 +548,7 @@ typing-inspect==0.9.0
     # via dataclasses-json
 tzdata==2024.2
     # via pandas
-union==0.1.87
+union==0.1.93
     # via -r requirements.txt
 urllib3==2.2.3
     # via
@@ -562,7 +562,7 @@ websocket-client==1.8.0
     # via kubernetes
 wrapt==1.16.0
     # via aiobotocore
-yarl==1.17.0
+yarl==1.17.1
     # via aiohttp
 zipp==3.20.2
     # via importlib-metadata

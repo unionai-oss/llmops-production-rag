@@ -5,7 +5,7 @@ from dataclasses import dataclass, asdict
 from typing import Annotated, Optional
 
 import pandas as pd
-import flytekit as fk
+import flytekit as fl
 from flytekit.deck import TopFrameRenderer
 from flytekit.types.directory import FlyteDirectory
 
@@ -16,7 +16,7 @@ from llmops_rag.rag_basic import rag_basic
 from llmops_rag.utils import openai_env_secret, convert_fig_into_html
 
 
-EvalDatasetArtifact = fk.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
+EvalDatasetArtifact = fl.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
 
 
 @dataclass
@@ -60,7 +60,7 @@ class Answer:
     question_id: int
 
 
-@fk.task(
+@fl.task(
     container_image=image,
     cache=True,
     cache_version="2",
@@ -87,7 +87,7 @@ def prepare_hpo_configs(gridsearch_config: GridSearchConfig) -> list[HPOConfig]:
     return hpo_configs
 
 
-@fk.task(
+@fl.task(
     container_image=image,
     cache=True,
     cache_version="1",
@@ -103,7 +103,7 @@ def prepare_questions(dataset: pd.DataFrame, n_answers: int) -> list[Question]:
     return [Question(**record) for record in questions]
 
 
-@fk.task(
+@fl.task(
     container_image=image,
     cache=True,
     cache_version="1",
@@ -118,7 +118,7 @@ def prepare_answers(answers: list[str], questions: list[Question]) -> list[Answe
     ]
 
 
-@fk.dynamic(container_image=image, cache=True, cache_version="6")
+@fl.dynamic(container_image=image, cache=True, cache_version="6")
 def generate_answers(
     questions: list[Question],
     root_url_tags_mapping: Optional[dict] = None,
@@ -156,7 +156,7 @@ def generate_answers(
     return prepare_answers(answers, questions)
 
 
-@fk.dynamic(container_image=image, cache=True, cache_version="7")
+@fl.dynamic(container_image=image, cache=True, cache_version="7")
 def gridsearch(
     questions: list[Question],
     hpo_configs: list[HPOConfig],
@@ -182,7 +182,7 @@ def gridsearch(
     return answers
 
 
-@fk.task(
+@fl.task(
     container_image=image,
     cache=True,
     cache_version="1",
@@ -287,10 +287,10 @@ def llm_judge_eval(
     return answers_dataset.assign(llm_correctness_score=llm_correctness_scores)
 
 
-@fk.task(
+@fl.task(
     container_image=image,
-    secret_requests=[fk.Secret(key="openai_api_key")],
-    requests=fk.Resources(cpu="4", mem="8Gi"),
+    secret_requests=[fl.Secret(key="openai_api_key")],
+    requests=fl.Resources(cpu="4", mem="8Gi"),
     cache=True,
     cache_version="7",
 )
@@ -316,11 +316,11 @@ def evaluate(
     return RAGConfig(**best_config), evaluation, evaluation_summary
 
 
-@fk.task(
+@fl.task(
     container_image=image,
     enable_deck=True,
     deck_fields=[],
-    requests=fk.Resources(cpu="4", mem="8Gi"),
+    requests=fl.Resources(cpu="4", mem="8Gi"),
 )
 def report(evaluation: pd.DataFrame, evaluation_summary: pd.DataFrame):
     import seaborn as sns
@@ -336,19 +336,21 @@ def report(evaluation: pd.DataFrame, evaluation_summary: pd.DataFrame):
     g.map_dataframe(sns.barplot, y="condition_name", x="score", orient="h")
     g.add_legend()
 
-    decks = fk.current_context().decks
-    decks.insert(0, fk.Deck("Evaluation", TopFrameRenderer(10).to_html(evaluation)))
-    decks.insert(0, fk.Deck("Evaluation Summary", TopFrameRenderer(10).to_html(evaluation_summary)))
-    decks.insert(0, fk.Deck("Benchmarking Results", convert_fig_into_html(g.figure)))
+    decks = fl.current_context().decks
+    decks.insert(0, fl.Deck("Evaluation", TopFrameRenderer(10).to_html(evaluation)))
+    decks.insert(0, fl.Deck("Evaluation Summary", TopFrameRenderer(10).to_html(evaluation_summary)))
+    decks.insert(0, fl.Deck("Benchmarking Results", convert_fig_into_html(g.figure)))
 
 
-@fk.workflow
+@fl.workflow
 def optimize_rag(
     gridsearch_config: GridSearchConfig,
     root_url_tags_mapping: Optional[dict] = None,
     exclude_patterns: Optional[list[str]] = None,
     limit: Optional[int] = 10,
-    eval_dataset: Annotated[pd.DataFrame, EvalDatasetArtifact] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
+    eval_dataset: Annotated[
+        pd.DataFrame, EvalDatasetArtifact
+    ] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
     eval_prompt_template: Optional[str] = None,
     n_answers: int = 1,
 ) -> RAGConfig:

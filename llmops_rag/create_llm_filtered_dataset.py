@@ -5,7 +5,7 @@ from dataclasses import dataclass, asdict
 from functools import partial
 from typing import Annotated, Optional
 
-import flytekit as fk
+import flytekit as fl
 import pandas as pd
 
 from flytekit.deck import TopFrameRenderer
@@ -16,8 +16,8 @@ from llmops_rag.create_qa_dataset import QuestionAndAnswers
 from llmops_rag.utils import openai_env_secret
 
 
-QuestionAndAnswerDataset = fk.Artifact(name="question_and_answer_dataset")
-EvalDatasetArtifact = fk.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
+QuestionAndAnswerDataset = fl.Artifact(name="question_and_answer_dataset")
+EvalDatasetArtifact = fl.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
 
 N_RETRIES = 10
 SCORE_THRESHOLD = 3
@@ -50,10 +50,10 @@ class ReferenceAnswer:
     correctness_evaluation: str
 
 
-@fk.task(
+@fl.task(
     container_image=image,
-    requests=fk.Resources(cpu="2", mem="4Gi"),
-    secret_requests=[fk.Secret(key="openai_api_key")],
+    requests=fl.Resources(cpu="2", mem="4Gi"),
+    secret_requests=[fl.Secret(key="openai_api_key")],
     cache=True,
     cache_version="2",
 )
@@ -70,10 +70,12 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
         input_variables=["question", "context"],
         template="""
         You will be given a context and a question.
-        Your task is to provide a rating representing how well one can answer the given
-        question unambiguously with the given context. Give your response on a scale of 1 to 5,
-        where 1 means that the question is not answerable at all given the context, and 5 means
-        that the question is clearly and unambiguously answerable with the context.
+        Your task is to provide a rating representing how well
+        one can answer the given question unambiguously with
+        the given context. Give your response on a scale of 1 to 5,
+        where 1 means that the question is not answerable at all
+        given the context, and 5 means that the question is clearly
+        and unambiguously answerable with the context.
 
         Provide your response as follows:
 
@@ -81,7 +83,8 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
         Evaluation: (your rationale for the rating, as text)
         Rating: (your rating, as a number between 1 and 5)
 
-        You MUST provide values for 'Evaluation:' and 'Rating:' in your response.
+        You MUST provide values for 'Evaluation:' and 'Rating:'
+        in your response.
 
         Now here are the question and context.
 
@@ -95,11 +98,13 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
         input_variables=["question"],
         template="""
         You will be given a question.
-        Your task is to provide a rating representing how useful this question can be
-        to data scientists, analysts, and ML engineers using the pandas python data analysis library.
+        Your task is to provide a rating representing how
+        useful this question can be to data scientists, analysts,
+        and ML engineers using the pandas python data analysis library.
 
-        Give your response on a scale of 1 to 5, where 1 means that the question is not useful
-        at all, and 5 means that the question is extremely useful.
+        Give your response on a scale of 1 to 5, where 1 means that
+        the question is not useful at all, and 5 means that the
+        question is extremely useful.
 
         Provide your response as follows:
 
@@ -107,7 +112,8 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
         Evaluation: (your rationale for the rating, as text)
         Rating: (your rating, as a number between 1 and 5)
 
-        You MUST provide values for 'Evaluation:' and 'Rating:' in your response.
+        You MUST provide values for 'Evaluation:' and 'Rating:'
+        in your response.
 
         Now here is the question.
 
@@ -186,7 +192,7 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
 
 
 
-@fk.dynamic(
+@fl.dynamic(
     container_image=image,
     cache=True,
     cache_version="2",
@@ -198,13 +204,13 @@ def apply_llm_critic(dataset: FlyteFile) -> list[QualityScores]:
         dataset_index = [*range(len(json.load(f)))]
 
     llm_critic_partial = partial(llm_critic, dataset=dataset)
-    quality_scores = fk.map_task(llm_critic_partial)(dataset_index=dataset_index)
+    quality_scores = fl.map_task(llm_critic_partial)(dataset_index=dataset_index)
     return quality_scores
 
 
-@fk.task(
+@fl.task(
     container_image=image,
-    requests=fk.Resources(cpu="2", mem="4Gi"),
+    requests=fl.Resources(cpu="2", mem="4Gi"),
     cache=True,
     cache_version="2",
 )
@@ -248,9 +254,9 @@ def filter_dataset(dataset: FlyteFile, scores: list[QualityScores]) -> list[Refe
     return reference_answers
 
 
-@fk.task(
+@fl.task(
     container_image=image,
-    requests=fk.Resources(cpu="2", mem="4Gi"),
+    requests=fl.Resources(cpu="2", mem="4Gi"),
     enable_deck=True,
     deck_fields=[],
     cache=True,
@@ -259,11 +265,11 @@ def filter_dataset(dataset: FlyteFile, scores: list[QualityScores]) -> list[Refe
 def prepare_dataset(reference_answers: list[ReferenceAnswer]) -> Annotated[pd.DataFrame, EvalDatasetArtifact]:
     """Prepare and visualize dataset."""
     dataset = pd.DataFrame.from_records([asdict(x) for x in reference_answers])
-    fk.Deck("filtered dataset", TopFrameRenderer().to_html(dataset))
+    fl.Deck("filtered dataset", TopFrameRenderer().to_html(dataset))
     return EvalDatasetArtifact.create_from(dataset, dataset_type="llm_filtered")
 
 
-@fk.workflow
+@fl.workflow
 def create_llm_filtered_dataset(
     dataset: FlyteFile = QuestionAndAnswerDataset.query(),
 ) -> pd.DataFrame:

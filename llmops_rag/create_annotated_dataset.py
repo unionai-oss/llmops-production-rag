@@ -10,17 +10,17 @@ from collections import defaultdict
 from itertools import groupby
 from typing import Annotated
 
-import flytekit as fk
+import flytekit as fl
 from flytekit.deck import TopFrameRenderer
 from flytekit.models.filters import ValueIn
 from flytekit.remote.remote import MOST_RECENT_FIRST
 from union.remote import UnionRemote
 
 
-image = fk.ImageSpec(packages=["pandas", "pyarrow"])
+image = fl.ImageSpec(packages=["pandas", "pyarrow"])
 
 
-EvalDatasetArtifact = fk.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
+EvalDatasetArtifact = fl.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
 
 
 @dataclass
@@ -177,12 +177,12 @@ LABEL_KEY = "union_annotator"
 LABEL_VALUE = "llmops_workshop_v0"
 
 
-@fk.task(
+@fl.task(
     container_image=image,
-    secret_requests=[fk.Secret(key="helpabot_app_key")],
+    secret_requests=[fl.Secret(key="helpabot_app_key")],
 )
 def collect_annotations() -> list[Annotation]:
-    os.environ["UNION_API_KEY"] = fk.current_context().secrets.get(key="helpabot_app_key")
+    os.environ["UNION_API_KEY"] = fl.current_context().secrets.get(key="helpabot_app_key")
     remote = UnionRemote(default_project="flytesnacks", default_domain="development")
     token = None
     _executions = []
@@ -222,7 +222,7 @@ def collect_annotations() -> list[Annotation]:
     return annotation_data
 
 
-@fk.task(container_image=image, enable_deck=True)
+@fl.task(container_image=image, enable_deck=True)
 def create_dataset(
     annotations: list[Annotation],
     min_annotations_per_question: int,
@@ -253,8 +253,8 @@ def create_dataset(
         all_raw_rankings = pd.DataFrame(all_raw_rankings)
 
     reference_answers_df = pd.DataFrame([asdict(a) for a in all_reference_answers])
-    fk.current_context().decks.insert(
-        0, fk.Deck("Eval Dataset", TopFrameRenderer(10).to_html(reference_answers_df))
+    fl.current_context().decks.insert(
+        0, fl.Deck("Eval Dataset", TopFrameRenderer(10).to_html(reference_answers_df))
     )
     return (
         EvalDatasetArtifact.create_from(reference_answers_df, dataset_type="human_annotated"),
@@ -262,7 +262,7 @@ def create_dataset(
     )
 
 
-@fk.workflow
+@fl.workflow
 def create(min_annotations_per_question: int = 1) -> pd.DataFrame:
     annotations = collect_annotations()
     out, _ = create_dataset(annotations, min_annotations_per_question)

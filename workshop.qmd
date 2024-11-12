@@ -73,13 +73,13 @@ Create the vector store:
 
 ```{python}
 %%writefile vector_store.py
-import flytekit as fk
+import flytekit as fl
 from typing import Optional
 from flytekit.types.directory import FlyteDirectory
 from llmops_rag.vector_store import create_knowledge_base, chunk_and_embed_documents
 
 
-@fk.workflow
+@fl.workflow
 def create_vector_store(
     root_url_tags_mapping: Optional[dict] = None,
     splitter: str = "character",
@@ -115,14 +115,14 @@ Then implement a basic RAG pipeline:
 
 ```{python}
 %%writefile rag_basic.py
-import flytekit as fk
+import flytekit as fl
 from typing import Optional
 from flytekit.types.directory import FlyteDirectory
 from llmops_rag.vector_store import VectorStore
 from llmops_rag.rag_basic import retrieve, generate
 
 
-@fk.workflow
+@fl.workflow
 def rag_basic(
     questions: list[str],
     vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default
@@ -169,18 +169,18 @@ Let's use launch plan schedules to maintain a fresh vector store.
 
 ```{python}
 %%writefile vector_store_launchplan.py
-import flytekit as fk
+import flytekit as fl
 from datetime import timedelta
 from vector_store import create_vector_store
 
 
-schedule_vector_store_lp = fk.LaunchPlan.get_or_create(
+schedule_vector_store_lp = fl.LaunchPlan.get_or_create(
     name="schedule_vector_store_lp",
     workflow=create_vector_store,
     default_inputs={
         "limit": 10,
     },
-    schedule=fk.FixedRate(
+    schedule=fl.FixedRate(
         duration=timedelta(minutes=3)
     )
 )
@@ -232,14 +232,14 @@ in the previous step.
 import functools
 from typing import Annotated
 
-import flytekit as fk
+import flytekit as fl
 from flytekit.types.file import FlyteFile
 from llmops_rag.create_qa_dataset import generate_qa_datapoints, create_dataset, QuestionAndAnswerDataset
 from llmops_rag.document import CustomDocument
 from llmops_rag.vector_store import KnowledgeBase
 
 
-@fk.workflow
+@fl.workflow
 def create_qa_dataset(
     documents: list[CustomDocument] = KnowledgeBase.query(),
     n_questions_per_doc: int = 1,
@@ -250,7 +250,7 @@ def create_qa_dataset(
         n_questions_per_doc=n_questions_per_doc,
         n_answers_per_question=n_answers_per_question,
     )
-    questions_and_answers = fk.map_task(partial_task)(flyte_doc=documents)
+    questions_and_answers = fl.map_task(partial_task)(flyte_doc=documents)
     return create_dataset(questions_and_answers, n_answers_per_question)
 ```
 
@@ -262,14 +262,14 @@ Filter the dataset with an LLM critic:
 
 ```{python}
 %%writefile create_llm_filtered_dataset.py
-import flytekit as fk
+import flytekit as fl
 from llmops_rag.create_llm_filtered_dataset import apply_llm_critic, filter_dataset, prepare_dataset
 from llmops_rag.create_qa_dataset import QuestionAndAnswerDataset
 from flytekit.types.file import FlyteFile
 import pandas as pd
 
 
-@fk.workflow
+@fl.workflow
 def create_llm_filtered_dataset(
     dataset: FlyteFile = QuestionAndAnswerDataset.query(),
 ) -> pd.DataFrame:
@@ -289,7 +289,7 @@ Experiment with different embedding models:
 
 ```{python}
 %%writefile optimize_rag.py
-import flytekit as fk
+import flytekit as fl
 from typing import Optional, Annotated
 from llmops_rag.optimize_rag import (
     GridSearchConfig,
@@ -305,7 +305,7 @@ from llmops_rag.create_llm_filtered_dataset import EvalDatasetArtifact
 import pandas as pd
 
 
-@fk.workflow
+@fl.workflow
 def optimize_rag(
     gridsearch_config: GridSearchConfig,
     root_url_tags_mapping: Optional[dict] = None,
@@ -363,7 +363,7 @@ Experiment with document retrieval:
 from typing import Annotated, Optional
 from datetime import timedelta
 
-import flytekit as fk
+import flytekit as fl
 import pandas as pd
 from union.artifacts import OnArtifact
 
@@ -374,7 +374,7 @@ from llmops_rag.optimize_rag import optimize_rag, GridSearchConfig
 from llmops_rag.vector_store import create_knowledge_base, KnowledgeBase
 
 
-@fk.workflow
+@fl.workflow
 def knowledge_base_workflow(
     root_url_tags_mapping: Optional[dict] = None,
     limit: Optional[int | float] = None,
@@ -387,7 +387,7 @@ def knowledge_base_workflow(
     ).with_overrides(cache=False)
 
 
-@fk.workflow
+@fl.workflow
 def create_eval_dataset(
     documents: list[CustomDocument],
     n_questions_per_doc: int = 1,
@@ -401,14 +401,14 @@ def create_eval_dataset(
     return create_llm_filtered_dataset(dataset=qa_dataset)
 
 
-knowledge_base_lp = fk.LaunchPlan.get_or_create(
+knowledge_base_lp = fl.LaunchPlan.get_or_create(
     knowledge_base_workflow,
     name="knowledge_base_lp",
     default_inputs={"limit": 10},
-    schedule=fk.FixedRate(duration=timedelta(minutes=3))
+    schedule=fl.FixedRate(duration=timedelta(minutes=3))
 )
 
-create_eval_dataset_lp = fk.LaunchPlan.get_or_create(
+create_eval_dataset_lp = fl.LaunchPlan.get_or_create(
     create_eval_dataset,
     name="create_eval_dataset_lp",
     trigger=OnArtifact(
@@ -417,7 +417,7 @@ create_eval_dataset_lp = fk.LaunchPlan.get_or_create(
     )
 )
 
-optimize_rag_lp = fk.LaunchPlan.get_or_create(
+optimize_rag_lp = fl.LaunchPlan.get_or_create(
     optimize_rag,
     name="optimize_rag_lp",
     default_inputs={

@@ -1,8 +1,8 @@
 beautifulsoup4
 faiss-cpu
 flashrank
-union==0.1.87
-flytekit==1.13.11
+union
+flytekit
 flytekitplugins-deck-standard
 flytekitplugins-inference
 gitpython

@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from typing import List, Annotated
 
-import flytekit as fk
+import flytekit as fl
 from flytekit.deck import MarkdownRenderer
 from flytekit.types.file import FlyteFile
 
@@ -17,7 +17,7 @@ from llmops_rag.utils import openai_env_secret
 
 DEFAULT_ANNOTATION_SET_NAME = "default"
 
-QuestionAndAnswerDataset = fk.Artifact(name="question_and_answer_dataset")
+QuestionAndAnswerDataset = fl.Artifact(name="question_and_answer_dataset")
 
 
 @dataclass
@@ -29,12 +29,12 @@ class QuestionAndAnswers:
     id: int | None = None
 
 
-@fk.task(
+@fl.task(
     container_image=image,
-    requests=fk.Resources(cpu="2", mem="8Gi"),
-    secret_requests=[fk.Secret(key="openai_api_key")],
-    cache=True,
-    cache_version="2",
+    requests=fl.Resources(cpu="2", mem="8Gi"),
+    secret_requests=[fl.Secret(key="openai_api_key")],
+    # cache=True,
+    # cache_version="3",
     environment={"OPENAI_API_TYPE": "chat"},
 )
 @openai_env_secret
@@ -145,11 +145,11 @@ This dataset contains questions and answers generated from the provided document
 """
 
 
-@fk.task(
+@fl.task(
     container_image=image,
-    requests=fk.Resources(cpu="2", mem="4Gi"),
-    cache=True,
-    cache_version="2",
+    requests=fl.Resources(cpu="2", mem="4Gi"),
+    # cache=True,
+    # cache_version="2",
     enable_deck=True,
     deck_fields=[],
 )
@@ -174,7 +174,7 @@ def create_dataset(questions_and_answers: List[List[QuestionAndAnswers]], n_answ
         json.dump(qa_dataset, f, indent=4)
 
     preview = "\n\n".join([f"```json\n{json.dumps(x, indent=4)}\n```" for x in qa_dataset[:5]])
-    fk.Deck("QA Dataset", MarkdownRenderer().to_html(
+    fl.Deck("QA Dataset", MarkdownRenderer().to_html(
         QA_DATASET_TEMPLATE.format(
             n_questions=len(qa_dataset),
             n_answers_per_question=n_answers_per_question,
@@ -184,7 +184,7 @@ def create_dataset(questions_and_answers: List[List[QuestionAndAnswers]], n_answ
     return FlyteFile(path=file_path)
 
 
-@fk.workflow
+@fl.workflow
 def create_qa_dataset(
     documents: List[CustomDocument] = KnowledgeBase.query(),
     n_questions_per_doc: int = 1,
@@ -195,5 +195,5 @@ def create_qa_dataset(
         n_questions_per_doc=n_questions_per_doc,
         n_answers_per_question=n_answers_per_question,
     )
-    questions_and_answers = fk.map_task(partial_task)(flyte_doc=documents)
+    questions_and_answers = fl.map_task(partial_task)(flyte_doc=documents)
     return create_dataset(questions_and_answers, n_answers_per_question)

@@ -6,7 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Optional
 
-import flytekit as fk
+import flytekit as fl
 from flytekit.types.directory import FlyteDirectory
 from flytekit.types.file import FlyteFile
 from union.artifacts import DataCard
@@ -17,15 +17,15 @@ from llmops_rag.utils import openai_env_secret
 
 
 
-KnowledgeBase = fk.Artifact(name="knowledge-base")
-VectorStore = fk.Artifact(name="vector-store")
+KnowledgeBase = fl.Artifact(name="knowledge-base")
+VectorStore = fl.Artifact(name="vector-store")
 
 
-@fk.task(
+@fl.task(
     container_image=image,
     cache=True,
-    cache_version="6",
-    requests=fk.Resources(cpu="2", mem="8Gi"),
+    cache_version="9",
+    requests=fl.Resources(cpu="2", mem="8Gi"),
     enable_deck=True,
 )
 def create_knowledge_base(
@@ -40,11 +40,11 @@ def create_knowledge_base(
     from llmops_rag.document import get_links, HTML2MarkdownTransformer
 
     root_url_tags_mapping = root_url_tags_mapping or {
-        "https://pandas.pydata.org/docs/user_guide/": ("div", {"class": "bd-article-container"}),
+        "https://pandas.pydata.org/docs/": ("div", {"class": "bd-article-container"}),
     }
 
     exclude_patterns = exclude_patterns or [
-        "docs/getting_started", "/docs/reference/", "/docs/development/", "/docs/whatsnew/",
+        "/docs/reference/", "/docs/development/", "/docs/dev/", "/docs/whatsnew/",
     ]
     page_transformer = HTML2MarkdownTransformer(root_url_tags_mapping)
     urls = list(
@@ -124,12 +124,12 @@ This artifact is a vector store of {len(document_chunks)} document chunks using 
 """
 
 
-@fk.task(
+@fl.task(
     container_image=image,
     cache=True,
     cache_version="3",
-    requests=fk.Resources(cpu="2", mem="8Gi"),
-    secret_requests=[fk.Secret(key="openai_api_key")],
+    requests=fl.Resources(cpu="2", mem="8Gi"),
+    secret_requests=[fl.Secret(key="openai_api_key")],
     enable_deck=True,
 )
 @openai_env_secret
@@ -200,14 +200,14 @@ def chunk_and_embed_documents(
     )
 
 
-@fk.workflow
+@fl.workflow
 def create_vector_store(
     root_url_tags_mapping: Optional[dict] = None,
+    limit: Optional[int] = None,
+    exclude_patterns: Optional[list[str]] = None,
     splitter: str = "character",
     chunk_size: int = 2048,
-    limit: Optional[int | float] = None,
     embedding_model: Optional[str] = "text-embedding-ada-002",
-    exclude_patterns: Optional[list[str]] = None,
 ) -> FlyteDirectory:
     """
     Workflow for creating the vector store knowledge base.
@@ -226,13 +226,13 @@ def create_vector_store(
     return vector_store
 
 
-create_vector_store_lp = fk.LaunchPlan.get_or_create(
+create_vector_store_lp = fl.LaunchPlan.get_or_create(
     name="create_vector_store_lp",
     workflow=create_vector_store,
     default_inputs={
         "limit": 10,
     },
-    schedule=fk.FixedRate(
+    schedule=fl.FixedRate(
         duration=timedelta(minutes=3)
     )
 )
