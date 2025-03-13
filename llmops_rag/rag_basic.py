@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-import flytekit as fl
 import flytekitplugins.inference as fl_inference
+import union
 
 from flytekit.deck import MarkdownRenderer
 from flytekit.extras.accelerators import L4
@@ -15,7 +15,7 @@ from llmops_rag.utils import openai_env_secret
 from llmops_rag.config import DEFAULT_PROMPT_TEMPLATE
 
 
-VectorStore = fl.Artifact(name="vector-store")
+VectorStore = union.Artifact(name="vector-store")
 
 
 OLLAMA_MODEL_NAME = "llama3.1"
@@ -30,8 +30,8 @@ actor = ActorEnvironment(
     ttl_seconds=180,
     container_image=image,
     replica_count=8,
-    requests=fl.Resources(cpu="2", mem="8Gi"),
-    secret_requests=[fl.Secret(key="openai_api_key")],
+    requests=union.Resources(cpu="2", mem="8Gi"),
+    secret_requests=[union.Secret(key="openai_api_key")],
 )
 
 
@@ -40,7 +40,7 @@ ollama_actor = ActorEnvironment(
     ttl_seconds=180,
     container_image=image,
     replica_count=1,
-    requests=fl.Resources(gpu="0", mem="8Gi"),
+    requests=union.Resources(gpu="1", mem="8Gi"),
     accelerator=L4,
     pod_template=ollama_instance.pod_template,
 )
@@ -91,7 +91,7 @@ def retrieve(
         context = "\n\n".join(relevant_docs[:num_docs_final])
         contexts.append(context)
 
-    fl.Deck("Context", MarkdownRenderer().to_html(contexts[0]))
+    union.Deck("Context", MarkdownRenderer().to_html(contexts[0]))
     return contexts
 
 
@@ -117,21 +117,21 @@ def generate(
         answer = chain.invoke({"question": question, "context": context})
         answers.append(answer)
 
-    fl.Deck("Answer", MarkdownRenderer().to_html(answers[0]))
+    union.Deck("Answer", MarkdownRenderer().to_html(answers[0]))
     return answers
 
 
-@fl.workflow
+@union.workflow
 def rag_basic(
     questions: list[str],
     vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default
     embedding_model: str = "text-embedding-ada-002",
     generation_model: str = "gpt-4o-mini",
+    prompt_template: Optional[str] = None,
     search_type: str = "similarity",
     rerank: bool = False,
     num_retrieved_docs: int = 20,
     num_docs_final: int = 5,
-    prompt_template: Optional[str] = None,
 ) -> list[str]:
     contexts = retrieve(
         questions,
@@ -177,11 +177,11 @@ def generate_ollama(
         answer = chain.invoke({"question": question, "context": context})
         answers.append(answer)
 
-    fl.Deck("Answer", MarkdownRenderer().to_html(answers[0]))
+    union.Deck("Answer", MarkdownRenderer().to_html(answers[0]))
     return answers
 
 
-@fl.workflow
+@union.workflow
 def rag_basic_ollama(
     questions: list[str],
     vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default

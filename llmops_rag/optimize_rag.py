@@ -5,7 +5,7 @@ from dataclasses import dataclass, asdict
 from typing import Annotated, Optional
 
 import pandas as pd
-import flytekit as fl
+import union
 from flytekit.deck import TopFrameRenderer
 from flytekit.types.directory import FlyteDirectory
 
@@ -16,7 +16,7 @@ from llmops_rag.rag_basic import rag_basic
 from llmops_rag.utils import openai_env_secret, convert_fig_into_html
 
 
-EvalDatasetArtifact = fl.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
+EvalDatasetArtifact = union.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
 
 
 @dataclass
@@ -60,7 +60,7 @@ class Answer:
     question_id: int
 
 
-@fl.task(
+@union.task(
     container_image=image,
     cache=True,
     cache_version="2",
@@ -87,7 +87,7 @@ def prepare_hpo_configs(gridsearch_config: GridSearchConfig) -> list[HPOConfig]:
     return hpo_configs
 
 
-@fl.task(
+@union.task(
     container_image=image,
     cache=True,
     cache_version="1",
@@ -103,7 +103,7 @@ def prepare_questions(dataset: pd.DataFrame, n_answers: int) -> list[Question]:
     return [Question(**record) for record in questions]
 
 
-@fl.task(
+@union.task(
     container_image=image,
     cache=True,
     cache_version="1",
@@ -118,7 +118,7 @@ def prepare_answers(answers: list[str], questions: list[Question]) -> list[Answe
     ]
 
 
-@fl.dynamic(container_image=image, cache=True, cache_version="6")
+@union.dynamic(container_image=image, cache=True, cache_version="6")
 def generate_answers(
     questions: list[Question],
     root_url_tags_mapping: Optional[dict] = None,
@@ -156,7 +156,7 @@ def generate_answers(
     return prepare_answers(answers, questions)
 
 
-@fl.dynamic(container_image=image, cache=True, cache_version="7")
+@union.dynamic(container_image=image, cache=True, cache_version="7")
 def gridsearch(
     questions: list[Question],
     hpo_configs: list[HPOConfig],
@@ -182,7 +182,7 @@ def gridsearch(
     return answers
 
 
-@fl.task(
+@union.task(
     container_image=image,
     cache=True,
     cache_version="1",
@@ -287,10 +287,10 @@ def llm_judge_eval(
     return answers_dataset.assign(llm_correctness_score=llm_correctness_scores)
 
 
-@fl.task(
+@union.task(
     container_image=image,
-    secret_requests=[fl.Secret(key="openai_api_key")],
-    requests=fl.Resources(cpu="4", mem="8Gi"),
+    secret_requests=[union.Secret(key="openai_api_key")],
+    requests=union.Resources(cpu="4", mem="8Gi"),
     cache=True,
     cache_version="7",
 )
@@ -316,11 +316,11 @@ def evaluate(
     return RAGConfig(**best_config), evaluation, evaluation_summary
 
 
-@fl.task(
+@union.task(
     container_image=image,
     enable_deck=True,
     deck_fields=[],
-    requests=fl.Resources(cpu="4", mem="8Gi"),
+    requests=union.Resources(cpu="4", mem="8Gi"),
 )
 def report(evaluation: pd.DataFrame, evaluation_summary: pd.DataFrame):
     import seaborn as sns
@@ -336,13 +336,13 @@ def report(evaluation: pd.DataFrame, evaluation_summary: pd.DataFrame):
     g.map_dataframe(sns.barplot, y="condition_name", x="score", orient="h")
     g.add_legend()
 
-    decks = fl.current_context().decks
-    decks.insert(0, fl.Deck("Evaluation", TopFrameRenderer(10).to_html(evaluation)))
-    decks.insert(0, fl.Deck("Evaluation Summary", TopFrameRenderer(10).to_html(evaluation_summary)))
-    decks.insert(0, fl.Deck("Benchmarking Results", convert_fig_into_html(g.figure)))
+    decks = union.current_context().decks
+    decks.insert(0, union.Deck("Evaluation", TopFrameRenderer(10).to_html(evaluation)))
+    decks.insert(0, union.Deck("Evaluation Summary", TopFrameRenderer(10).to_html(evaluation_summary)))
+    decks.insert(0, union.Deck("Benchmarking Results", convert_fig_into_html(g.figure)))
 
 
-@fl.workflow
+@union.workflow
 def optimize_rag(
     gridsearch_config: GridSearchConfig,
     root_url_tags_mapping: Optional[dict] = None,
@@ -356,7 +356,13 @@ def optimize_rag(
 ) -> RAGConfig:
     hpo_configs = prepare_hpo_configs(gridsearch_config)
     questions = prepare_questions(eval_dataset, n_answers)
-    answers = gridsearch(questions, hpo_configs, root_url_tags_mapping, exclude_patterns, limit)
+    answers = gridsearch(
+        questions,
+        hpo_configs,
+        root_url_tags_mapping,
+        exclude_patterns,
+        limit,
+    )
     answers_dataset = combine_answers(answers, hpo_configs, questions)
     best_config, evaluation, evalution_summary = evaluate(
         answers_dataset, eval_prompt_template

@@ -125,12 +125,13 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
     correctness_prompt = PromptTemplate(
         input_variables=["question", "context", "answer"],
         template="""
-        You will be given a context, a question, and an answer to the question.
-        Your task is to provide a 'correctness rating' scoring the correctness of the
-        given answer to the question, based on the context.
+        You will be given a context, a question, and an answer
+        to the question. Your task is to provide a 'correctness rating'
+        scoring the correctness of the given answer to the question,
+        based on the context.
         
-        Give your answer on a scale of 1 to 5, referring to the rubric below for the exact
-        definition of each rating.
+        Give your answer on a scale of 1 to 5, referring to the
+        rubric below for the exact definition of each rating.
 
         ### Rating Rubric:
         [Is the response correct, accurate, and factual based on the reference answer?]

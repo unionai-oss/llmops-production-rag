@@ -1,9 +1,9 @@
 """A reactive pipeline to trigger RAG optimization when new eval dataset is available."""
 
-from typing import Annotated, Optional
+from typing import Optional
 from datetime import timedelta
 
-import flytekit as fl
+import union
 import pandas as pd
 from union.artifacts import OnArtifact
 
@@ -14,7 +14,7 @@ from llmops_rag.optimize_rag import optimize_rag, GridSearchConfig
 from llmops_rag.vector_store import create_knowledge_base, KnowledgeBase
 
 
-@fl.workflow
+@union.workflow
 def knowledge_base_workflow(
     root_url_tags_mapping: Optional[dict] = None,
     limit: Optional[int | float] = None,
@@ -27,7 +27,7 @@ def knowledge_base_workflow(
     ).with_overrides(cache=False)
 
 
-@fl.workflow
+@union.workflow
 def create_eval_dataset(
     documents: list[CustomDocument],
     n_questions_per_doc: int = 1,
@@ -41,14 +41,14 @@ def create_eval_dataset(
     return create_llm_filtered_dataset(dataset=qa_dataset)
 
 
-knowledge_base_lp = fl.LaunchPlan.get_or_create(
+knowledge_base_lp = union.LaunchPlan.get_or_create(
     knowledge_base_workflow,
     name="knowledge_base_lp",
     default_inputs={"limit": 10},
-    schedule=fl.FixedRate(duration=timedelta(minutes=3))
+    schedule=union.FixedRate(duration=timedelta(minutes=3))
 )
 
-create_eval_dataset_lp = fl.LaunchPlan.get_or_create(
+create_eval_dataset_lp = union.LaunchPlan.get_or_create(
     create_eval_dataset,
     name="create_eval_dataset_lp",
     trigger=OnArtifact(
@@ -57,7 +57,7 @@ create_eval_dataset_lp = fl.LaunchPlan.get_or_create(
     )
 )
 
-optimize_rag_lp = fl.LaunchPlan.get_or_create(
+optimize_rag_lp = union.LaunchPlan.get_or_create(
     optimize_rag,
     name="optimize_rag_lp",
     default_inputs={

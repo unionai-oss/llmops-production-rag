@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Optional
 
+import union
 import flytekit as fl
 from flytekit.types.directory import FlyteDirectory
 from flytekit.types.file import FlyteFile
@@ -17,15 +18,15 @@ from llmops_rag.utils import openai_env_secret
 
 
 
-KnowledgeBase = fl.Artifact(name="knowledge-base")
-VectorStore = fl.Artifact(name="vector-store")
+KnowledgeBase = union.Artifact(name="knowledge-base")
+VectorStore = union.Artifact(name="vector-store")
 
 
-@fl.task(
+@union.task(
     container_image=image,
     cache=True,
     cache_version="9",
-    requests=fl.Resources(cpu="2", mem="8Gi"),
+    requests=union.Resources(cpu="2", mem="8Gi"),
     enable_deck=True,
 )
 def create_knowledge_base(
@@ -124,12 +125,12 @@ This artifact is a vector store of {len(document_chunks)} document chunks using 
 """
 
 
-@fl.task(
+@union.task(
     container_image=image,
     cache=True,
     cache_version="3",
-    requests=fl.Resources(cpu="2", mem="8Gi"),
-    secret_requests=[fl.Secret(key="openai_api_key")],
+    requests=union.Resources(cpu="2", mem="8Gi"),
+    secret_requests=[union.Secret(key="openai_api_key")],
     enable_deck=True,
 )
 @openai_env_secret
@@ -200,7 +201,7 @@ def chunk_and_embed_documents(
     )
 
 
-@fl.workflow
+@union.workflow
 def create_vector_store(
     root_url_tags_mapping: Optional[dict] = None,
     limit: Optional[int] = None,
@@ -226,7 +227,7 @@ def create_vector_store(
     return vector_store
 
 
-create_vector_store_lp = fl.LaunchPlan.get_or_create(
+create_vector_store_lp = union.LaunchPlan.get_or_create(
     name="create_vector_store_lp",
     workflow=create_vector_store,
     default_inputs={
