@@ -1,6 +1,7 @@
 """Evaluate a RAG workflow."""
 
 import itertools
+from functools import partial
 from dataclasses import dataclass, asdict
 from typing import Annotated, Optional
 
@@ -108,6 +109,15 @@ def prepare_questions(dataset: pd.DataFrame, n_answers: int) -> list[Question]:
     cache=True,
     cache_version="1",
 )
+def get_question_strings(questions: list[Question]) -> list[str]:
+    return [question.question for question in questions]
+
+
+@union.task(
+    container_image=image,
+    cache=True,
+    cache_version="1",
+)
 def prepare_answers(answers: list[str], questions: list[Question]) -> list[Answer]:
     return [
         Answer(
@@ -118,45 +128,43 @@ def prepare_answers(answers: list[str], questions: list[Question]) -> list[Answe
     ]
 
 
-@union.dynamic(container_image=image, cache=True, cache_version="6")
+@union.workflow
 def generate_answers(
+    config: HPOConfig,
     questions: list[Question],
     root_url_tags_mapping: Optional[dict] = None,
     exclude_patterns: Optional[list[str]] = None,
-    splitter: str = "character",
-    chunk_size: int = 2048,
-    prompt_template: str = "",
     limit: Optional[int] = None,
-    embedding_model: Optional[str] = None,
-    generation_model: Optional[str] = None,
-    search_type: str = "similarity",
-    rerank: bool = False,
-    num_retrieved_docs: int = 20,
-    num_docs_final: int = 5,
 ) -> list[Answer]:
     vector_store = create_vector_store(
         root_url_tags_mapping=root_url_tags_mapping,
-        splitter=splitter,
-        chunk_size=chunk_size,
+        splitter=config.splitter,
+        chunk_size=config.chunk_size,
         limit=limit,
-        embedding_model=embedding_model,
+        embedding_model=config.embedding_model,
         exclude_patterns=exclude_patterns,
     )
     answers = rag_basic(
-        questions=[question.question for question in questions],
+        questions=get_question_strings(questions),
         vector_store=vector_store,
-        embedding_model=embedding_model,
-        generation_model=generation_model,
-        prompt_template=prompt_template,
-        search_type=search_type,
-        rerank=rerank,
-        num_retrieved_docs=num_retrieved_docs,
-        num_docs_final=num_docs_final,
+        embedding_model=config.embedding_model,
+        generation_model=config.generation_model,
+        prompt_template=config.prompt_template,
+        search_type=config.search_type,
+        rerank=config.rerank,
+        num_retrieved_docs=config.num_retrieved_docs,
+        num_docs_final=config.num_docs_final,
     )
     return prepare_answers(answers, questions)
 
 
-@union.dynamic(container_image=image, cache=True, cache_version="7")
+generate_answers_lp = union.LaunchPlan.get_or_create(
+    workflow=generate_answers,
+    name="generate_answers_lp",
+)
+
+
+@union.workflow
 def gridsearch(
     questions: list[Question],
     hpo_configs: list[HPOConfig],
@@ -164,22 +172,15 @@ def gridsearch(
     exclude_patterns: Optional[list[str]] = None,
     limit: Optional[int] = None,
 ) -> list[list[Answer]]:
-    answers = []
-    for config in hpo_configs:
-        _answers = generate_answers(
+    return union.map(
+        generate_answers_lp,
+        bound_inputs=dict(
             questions=questions,
             root_url_tags_mapping=root_url_tags_mapping,
             exclude_patterns=exclude_patterns,
-            splitter=config.splitter,
-            chunk_size=config.chunk_size,
-            prompt_template=config.prompt_template,
             limit=limit,
-            embedding_model=config.embedding_model,
-            generation_model=config.generation_model,
-            rerank=config.rerank,
         )
-        answers.append(_answers)
-    return answers
+    )(config=hpo_configs)
 
 
 @union.task(
@@ -248,7 +249,15 @@ better than the reference answer in terms of correctness.
 
 ### Judgement:
 Is the candidate answer equivalent or better than the reference answer
-in terms of correctness? You MUST answer "Yes" or "No".
+in terms of correctness? Answer with a score from 1 to 5 according to the following scale:
+
+1: The candidate answer is not correct.
+2: The candidate answer is partially correct.
+3: The candidate answer is mostly correct.
+4: The candidate answer is correct.
+5: The candidate answer is better than the reference answer.
+
+Score:
 """
 
 
@@ -276,12 +285,12 @@ def llm_judge_eval(
         )
 
         result = result.content.lower().strip().strip(".").strip("'").strip('"')
-        if result not in ["yes", "no"]:
-            score = 0.0
-        elif result == "yes":
-            score = 1.0
-        else:
-            score = 0.0
+        try:
+            score = int(result)
+        except ValueError:
+            print(f"Invalid result: {result}, setting score to 0")
+            score = 0
+
         llm_correctness_scores.append(score)
 
     return answers_dataset.assign(llm_correctness_score=llm_correctness_scores)

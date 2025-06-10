@@ -2,7 +2,7 @@
 
 import asyncio
 import itertools
-from datetime import timedelta
+from datetime import timedelta, datetime
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -24,8 +24,6 @@ VectorStore = union.Artifact(name="vector-store")
 
 @union.task(
     container_image=image,
-    cache=True,
-    cache_version="9",
     requests=union.Resources(cpu="2", mem="8Gi"),
     enable_deck=True,
 )
@@ -104,15 +102,22 @@ def generate_data_md(
 
 ### 📖 Chunk {i}
 
-**Page metadata:**
+**Metadata:**
 
+```json
 {doc.metadata}
+```
+
+<details>
+<summary>Show chunk data</summary>
 
 **Content:**
 
 ```
 {doc.page_content.replace("```", "")}
 ```
+
+</details>
 """
 
     return f"""# 📚 Vector store knowledge base.

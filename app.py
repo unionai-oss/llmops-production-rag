@@ -63,4 +63,5 @@ with gr.Blocks() as demo:
     bot_msg.then(lambda: gr.Textbox(interactive=True), None, [chat_input])
 
 
-demo.launch(debug=True)
+if __name__ == "__main__":
+    demo.launch(debug=True, share=True)

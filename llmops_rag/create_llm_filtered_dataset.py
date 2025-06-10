@@ -7,6 +7,7 @@ from typing import Annotated, Optional
 
 import flytekit as fl
 import pandas as pd
+import union
 
 from flytekit.deck import TopFrameRenderer
 from flytekit.types.file import FlyteFile
@@ -50,15 +51,15 @@ class ReferenceAnswer:
     correctness_evaluation: str
 
 
-@fl.task(
+@union.task(
     container_image=image,
-    requests=fl.Resources(cpu="2", mem="4Gi"),
-    secret_requests=[fl.Secret(key="openai_api_key")],
+    requests=union.Resources(cpu="2", mem="4Gi"),
+    secret_requests=[union.Secret(key="openai_api_key")],
     cache=True,
     cache_version="2",
 )
 @openai_env_secret
-def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
+def llm_critic(dataset: union.FlyteFile, dataset_index: int) -> QualityScores:
     """Returns critic scores per question-answer pair."""
     # implement prompts for each quality score filed
     from langchain.prompts import PromptTemplate
@@ -192,20 +193,23 @@ def llm_critic(dataset: FlyteFile, dataset_index: int) -> QualityScores:
     return QualityScores(groundedness=groundedness_score, relevance=relevance_score, correctness_per_answer=correctness_scores)
 
 
-
-@fl.dynamic(
+@union.task(
     container_image=image,
+    requests=union.Resources(cpu="2", mem="4Gi"),
     cache=True,
     cache_version="2",
-    retries=5,
 )
-def apply_llm_critic(dataset: FlyteFile) -> list[QualityScores]:
-    """Applies the LLM critic to a dataset of question-answer pairs."""
+def get_dataset_index(dataset: union.FlyteFile) -> list[int]:
     with open(dataset, "r") as f:
-        dataset_index = [*range(len(json.load(f)))]
+        return [*range(len(json.load(f)))]
 
+
+@union.workflow
+def apply_llm_critic(dataset: union.FlyteFile) -> list[QualityScores]:
+    """Applies the LLM critic to a dataset of question-answer pairs."""
+    dataset_index = get_dataset_index(dataset)
     llm_critic_partial = partial(llm_critic, dataset=dataset)
-    quality_scores = fl.map_task(llm_critic_partial)(dataset_index=dataset_index)
+    quality_scores = union.map_task(llm_critic_partial)(dataset_index=dataset_index)
     return quality_scores
 
 
