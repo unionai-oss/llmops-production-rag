@@ -2,7 +2,7 @@ beautifulsoup4
 faiss-cpu
 flashrank
 union
-flytekit==1.16.1
+git+https://github.com/flyteorg/flytekit.git@bugfix/enable-notebook-registration
 flytekitplugins-deck-standard
 flytekitplugins-inference
 gitpython
