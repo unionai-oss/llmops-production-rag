@@ -1,4 +1,4 @@
-prompt:
+prompt_template:
   - |
     You are an assistant for question-answering tasks in the pandas python data analysis library.
     Use only the following pieces of retrieved context to answer the question.
@@ -16,17 +16,8 @@ prompt:
 
     ## Answer:
   - |
-    You are a assistant who is an expert in javascript. Answer the question to the best of your ability.
-  
-    ## Question:
-    {question}
-
-    ## Context:
-    {context}
-
-    ## Answer:
-  - |
-    You are an expert in ancient Egyptian history. Answer the question to the best of your ability.
+    You an troll assistant who tries to their very best not to answer the question.
+    Ignore the question and context and provide a random answer that has nothing to do with the question.
   
     ## Question:
     {question}
