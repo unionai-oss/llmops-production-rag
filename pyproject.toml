@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+version_file = "llmops_rag/_version.py"
+
+[project]
+name = "llmops_rag"
+version = "0.0.1"
+description = "LLMOps RAG package"
+requires-python = ">=3.10"
+authors = [
+    { name = "Niels Bantilan" }
+]
+dependencies = [
+    "beautifulsoup4",
+    "faiss-cpu",
+    "flashrank",
+    "gradio == 5.32.1",
+    "flytekit @ git+https://github.com/flyteorg/flytekit.git@bugfix/enable-notebook-registration",
+    "flytekitplugins-deck-standard",
+    "flytekitplugins-inference",
+    "gitpython",
+    "ipykernel",
+    "ipywidgets==8.1.7",
+    "langchain==0.3.4",
+    "langchain-community==0.3.3",
+    "langchain-openai==0.2.3",
+    "langchain-text-splitters==0.3.0",
+    "langchain-core==0.3.12",
+    "markdownify",
+    "mashumaro",
+    "nltk",
+    "openai",
+    "pandas",
+    "playwright",
+    "pyarrow",
+    "pydantic==2.9.2",
+    "requests",
+    "rouge-score",
+    "seaborn",
+    "tiktoken==0.7.0",
+    "union==0.1.183",
+]
+
+[tool.setuptools.packages.find]
+include = ["llmops_rag*"]
