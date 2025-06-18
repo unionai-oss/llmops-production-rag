@@ -18,6 +18,7 @@ from llmops_rag.utils import openai_env_secret, convert_fig_into_html
 
 
 EvalDatasetArtifact = union.Artifact(name="eval-dataset", partition_keys=["dataset_type"])
+BestRAGConfigArtifact = union.Artifact(name="best-rag-config")
 
 
 @dataclass
@@ -364,7 +365,7 @@ def optimize_rag(
     ] = EvalDatasetArtifact.query(dataset_type="llm_filtered"),
     eval_prompt_template: Optional[str] = None,
     n_answers: int = 1,
-) -> RAGConfig:
+) -> Annotated[RAGConfig, BestRAGConfigArtifact]:
     hpo_configs = prepare_hpo_configs(gridsearch_config)
     questions = prepare_questions(eval_dataset, n_answers)
     answers = gridsearch(
