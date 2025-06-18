@@ -1,0 +1,41 @@
+prompt:
+  - |
+    You are an assistant for question-answering tasks in the pandas python data analysis library.
+    Use only the following pieces of retrieved context to answer the question.
+    If you don't know the answer, just say that you don't know. Make the answer as
+    detailed as possible. When providing the answer, DO NOT make any explicit references
+    to the context, e.g. "According to the context..." or "The provided code snippets demostrates...".
+
+    Write the answer in markdown format. Make sure that Python code snippets are formatted with ```python
+
+    ## Question:
+    {question}
+
+    ## Context:
+    {context}
+
+    ## Answer:
+  - |
+    You are a assistant who is an expert in javascript. Answer the question to the best of your ability.
+  
+    ## Question:
+    {question}
+
+    ## Context:
+    {context}
+
+    ## Answer:
+  - |
+    You are an expert in ancient Egyptian history. Answer the question to the best of your ability.
+  
+    ## Question:
+    {question}
+
+    ## Context:
+    {context}
+
+    ## Answer:
+splitter:
+  - character
+chunk_size:
+  - 256
