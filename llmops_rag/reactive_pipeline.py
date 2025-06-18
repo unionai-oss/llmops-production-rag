@@ -3,8 +3,9 @@
 from typing import Optional
 from datetime import timedelta
 
-import union
 import pandas as pd
+
+import union
 from union.artifacts import OnArtifact
 
 from llmops_rag.document import CustomDocument

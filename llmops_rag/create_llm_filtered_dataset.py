@@ -5,10 +5,10 @@ from dataclasses import dataclass, asdict
 from functools import partial
 from typing import Annotated, Optional
 
-import flytekit as fl
 import pandas as pd
-import union
 
+import flytekit as fl
+import union
 from flytekit.deck import TopFrameRenderer
 from flytekit.types.file import FlyteFile
 

@@ -18,13 +18,6 @@ from llmops_rag.config import DEFAULT_PROMPT_TEMPLATE
 VectorStore = union.Artifact(name="vector-store")
 
 
-OLLAMA_MODEL_NAME = "llama3.1"
-ollama_instance = fl_inference.Ollama(
-    model=fl_inference.Model(OLLAMA_MODEL_NAME),
-    gpu="1",
-)
-
-
 actor = ActorEnvironment(
     name="rag-actor",
     ttl_seconds=180,
@@ -32,17 +25,6 @@ actor = ActorEnvironment(
     replica_count=8,
     requests=union.Resources(cpu="2", mem="8Gi"),
     secret_requests=[union.Secret(key="openai_api_key")],
-)
-
-
-ollama_actor = ActorEnvironment(
-    name="ollama-actor",
-    ttl_seconds=180,
-    container_image=image,
-    replica_count=1,
-    requests=union.Resources(gpu="1", mem="8Gi"),
-    accelerator=L4,
-    pod_template=ollama_instance.pod_template,
 )
 
 
@@ -147,64 +129,4 @@ def rag_basic(
         contexts,
         generation_model,
         prompt_template,
-    )
-
-
-@ollama_actor.task(enable_deck=True, deck_fields=[])
-def generate_ollama(
-    questions: list[str],
-    contexts: list[str],
-    generation_model: Optional[str] = None,
-    prompt_template: Optional[str] = None,
-) -> list[str]:
-    from langchain_core.output_parsers import StrOutputParser
-    from langchain_core.prompts import PromptTemplate
-    from langchain_openai import ChatOpenAI
-
-    prompt = PromptTemplate.from_template(prompt_template or DEFAULT_PROMPT_TEMPLATE)
-    assert generation_model in [OLLAMA_MODEL_NAME]
-
-    llm = ChatOpenAI(
-        model_name=generation_model,
-        base_url=f"{ollama_instance.base_url}/v1",
-        api_key="ollama",
-        temperature=0.9
-    )
-
-    chain = prompt | llm | StrOutputParser()
-    answers = []
-    for question, context in zip(questions, contexts):
-        answer = chain.invoke({"question": question, "context": context})
-        answers.append(answer)
-
-    union.Deck("Answer", MarkdownRenderer().to_html(answers[0]))
-    return answers
-
-
-@union.workflow
-def rag_basic_ollama(
-    questions: list[str],
-    vector_store: FlyteDirectory = VectorStore.query(),  # 👈 this uses the vector store artifact by default
-    embedding_model: str = "text-embedding-ada-002",
-    generation_model: str = "llama3.1",
-    search_type: str = "similarity",
-    rerank: bool = False,
-    num_retrieved_docs: int = 20,
-    num_docs_final: int = 5,
-    prompt_template: Optional[str] = None,
-) -> list[str]:
-    contexts = retrieve(
-        questions=questions,
-        vector_store=vector_store,
-        embedding_model=embedding_model,
-        search_type=search_type,
-        rerank=rerank,
-        num_retrieved_docs=num_retrieved_docs,
-        num_docs_final=num_docs_final,
-    )
-    return generate_ollama(
-        questions=questions,
-        contexts=contexts,
-        generation_model=generation_model,
-        prompt_template=prompt_template,
     )
