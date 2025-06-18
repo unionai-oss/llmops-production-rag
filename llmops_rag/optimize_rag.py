@@ -257,7 +257,9 @@ in terms of correctness? Answer with a score from 1 to 5 according to the follow
 4: The candidate answer is correct.
 5: The candidate answer is better than the reference answer.
 
-Score:
+The output MUST be a single integer score from 1 to 5.
+
+Output:
 """
 
 
@@ -267,7 +269,7 @@ def llm_judge_eval(
     from langchain_core.prompts import PromptTemplate
     from langchain_openai import ChatOpenAI
 
-    model = ChatOpenAI(model_name="gpt-4o", temperature=0.9)
+    model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.9)
     prompt = PromptTemplate.from_template(
         eval_prompt_template or DEFAULT_EVAL_PROMPT_TEMPLATE
     )
